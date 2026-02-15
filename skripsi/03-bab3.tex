@@ -1,0 +1,673 @@
+%-----------------------------------------------------------------------------%
+\chapter{\babTiga}
+\label{cha:perancangansistem}
+
+\section{Arsitektur Sistem}
+Secara garis besar, penelitian ini dilakukan dengan alur seperti pada Gambar \ref{fig:macro_arch}.
+
+\begin{figure}[H]
+    \centering
+    \captionsetup{font=small}
+\includegraphics[height=0.7\textheight, keepaspectratio]{assets/pics/macro_arch.PNG}
+\caption{Arsitektur HFV.}
+    \label{fig:macro_arch}
+\end{figure}
+
+\section{Pemilihan dan Pra-Pemrosesan Dataset ISCX 2016}
+
+\subsection{Deskripsi Dataset ISCX 2016}
+Dataset ISCXVPN2016 merupakan dataset yang paling populer dan banyak digunakan dalam penelitian klasifikasi lalu lintas jaringan terenkripsi, khususnya untuk membedakan trafik VPN dan Non-VPN \citep{DraperGil2016, razooqi2025vpn}. Dataset ini berisi trafik nyata dari berbagai aplikasi populer yang dikategorikan ke dalam tiga tugas klasifikasi utama: enkapsulasi (encapsulation), kategori aplikasi, dan aplikasi spesifik. Tugas enkapsulasi membedakan antara trafik VPN dan Non-VPN, kategori aplikasi mengelompokkan trafik berdasarkan jenis layanan seperti chat, email, streaming, transfer file, peer-to-peer, dan VoIP, sedangkan tugas aplikasi menentukan aplikasi spesifik yang menghasilkan trafik tersebut dengan total 16 kelas aplikasi \citep{park2024fast}.
+
+Tabel \ref{tab:dataset_distribution} menunjukkan distribusi kelas pada ketiga tugas klasifikasi dalam dataset ISCXVPN2016.
+
+\begin{table}[h]
+    \centering
+    \setlength{\tabcolsep}{6pt} % mengurangi jarak antar kolom
+    \renewcommand{\arraystretch}{1.2} % sedikit longgar untuk keterbacaan
+    \begin{tabularx}{\linewidth}{lX}
+        \toprule
+        \textbf{Tugas} & \textbf{Kelas} \\
+        \midrule
+        Enkapsulasi (2 kelas) & VPN, Non-VPN \\
+        Kategori (6 kelas) & Chat, Email, Streaming, File Transfer, P2P, VoIP \\
+        Aplikasi (16 kelas) & Skype, ICQ, Hangout, Facebook, Email, Gmail, FTP, SCP, SFTP, Netflix, Spotify, Vimeo, YouTube, AIM Chat, VOIPBuster, BitTorrent \\
+        \bottomrule
+    \end{tabularx}
+    \caption{Distribusi Kelas pada Dataset ISCXVPN2016 \citep{park2024fast}}
+    \label{tab:dataset_distribution}
+\end{table}
+
+Dengan tiga tingkat klasifikasi ini, dataset ISCXVPN2016 menyediakan metode evaluasi yang komprehensif dan representatif untuk penelitian network traffic classification, terutama dalam konteks trafik terenkripsi yang semakin berkembang.
+
+\subsection{Pra-Pemrosesan Dataset ISCX 2016}
+\label{subsec:prapemrosesan}
+
+Tujuan dari pra-pemrosesan dataset ISCX 2016 adalah untuk mengubah data mentah \texttt{.pcap}, yang berisi data level-paket, menjadi format \textit{flow-level} yang terstruktur dan bersih. Proses ini penting karena dataset aslinya, yang berisi sekitar 310.000 \textit{flow}, mengandung banyak trafik yang tidak relevan atau \textit{noise} yang dihasilkan oleh sistem operasi atau konfigurasi jaringan (seperti DNS, NBSS, LLMNR), bukan oleh aplikasi yang menjadi target analisis.
+
+Proses ini didasarkan pada metodologi yang diuraikan oleh \citep{park2024fast}, yang mengadopsi dan memperluas proses pembersihan dua tahap dari \citep{baek2023preprocessing}. Pra-pemrosesan ini terdiri dari tiga langkah utama:
+
+\subsubsection{Konversi Paket-ke-Flow (menggunakan SplitCap)}
+Langkah pertama adalah mengubah file \texttt{.pcap} mentah menjadi \textit{bidirectional flows} (sesi). Konversi ini krusial karena analisis level \textit{flow} (konversasi utuh) memberikan konteks yang jauh lebih kaya daripada analisis level paket (kata-kata individual). Analisis \textit{flow} juga memungkinkan ekstraksi fitur statistik yang lebih bermakna (misalnya, durasi \textit{flow}, total byte, waktu antar-paket) yang esensial untuk membedakan trafik terenkripsi tanpa perlu menginspeksi \textit{payload}.
+
+Untuk tugas ini, \textit{tool} SplitCap digunakan. SplitCap dipilih karena merupakan \textit{tool} khusus yang teroptimasi (ditulis dalam C/C++) untuk menangani file \texttt{.pcap} besar secara efisien dan akurat dalam mengelola sesi, yang esensial untuk mereproduksi metodologi penelitian.
+
+Untuk mengotomatisasi pemrosesan pada seluruh dataset, sebuah skrip Python digunakan untuk memanggil SplitCap pada setiap file \texttt{.pcap}, untuk melakukan command \verb|mono ./SplitCap.exe -r [pcap_file_path.pcap] -o [output_dir] -s session -p 500|
+. Perlu dicatat penambahan argumen \texttt{-p 500} yang penting untuk membatasi sesi paralel dan menghindari galat ``Too many open files''.
+
+\subsubsection{Pembersihan Awal (Rule A \& B)}
+Setelah seluruh data mentah \texttt{.pcap} dikonversi menjadi \textit{bidirectional flows} (dengan total estimasi awal $\sim$310.000 \textit{flow}), diterapkan proses pembersihan dua tahap yang mengadopsi metodologi dari \citep{baek2023preprocessing}. Tahap ini bertujuan untuk mengeliminasi trafik latar belakang (\textit{background traffic}) dan sesi yang rusak.
+
+\begin{enumerate}
+    \item \textbf{Penghapusan flow berbasis protokol (Rule A):} 
+    Banyak trafik dalam jaringan yang dihasilkan oleh mekanisme sistem operasi atau manajemen jaringan, bukan oleh interaksi pengguna dengan aplikasi target. Oleh karena itu, \textit{flow} yang teridentifikasi menggunakan protokol administratif seperti DNS, NBSS (NetBIOS), NTP, DHCP, dan LLMNR dihapus dari dataset.
+    
+    \item \textbf{Verifikasi TCP 3-way handshake (Rule B):} 
+    Integritas sesi TCP sangat krusial untuk analisis fitur yang akurat. \textit{Flow} yang merupakan pecahan dari sesi sebelumnya atau hasil kesalahan penangkapan paket (\textit{packet capture errors}) sering kali tidak memiliki inisiasi koneksi yang lengkap. 
+    
+    Secara formal, sebuah \textit{flow} TCP ($f$) dianggap valid ($f_{valid}$) jika dan hanya jika paket pertama ($p_1$) dari urutan paket dalam \textit{flow} tersebut memiliki \textit{control flag} SYN aktif, menandakan dimulainya \textit{3-way handshake}. Aturan ini didefinisikan secara matematis pada Persamaan \ref{eq:rule_b}.
+
+    \begin{myequation}{Aturan Validasi TCP Handshake}
+        \label{eq:rule_b}
+        f_{valid} \iff \left( \text{Protocol}(f) = \text{TCP} \implies \text{Flag}(p_1) \in \{\text{SYN}\} \right)
+    \end{myequation}
+
+    Implementasi teknis aturan ini dilakukan dengan memeriksa header paket pertama menggunakan pustaka Scapy; jika sebuah \textit{flow} TCP memiliki lebih dari 4 paket namun paket pertamanya tidak mengandung flag SYN, maka \textit{flow} tersebut diklasifikasikan sebagai \textit{invalid} dan dibuang.
+\end{enumerate}
+
+Penerapan kedua aturan ini secara drastis mengurangi \textit{noise} dalam dataset, menyusutkan jumlah sampel dari $\sim$310.000 menjadi \textbf{29.195 \textit{flow}} yang relevan. Alur logika penyaringan Rule A dan Rule B ini diilustrasikan pada Gambar \ref{fig:cleaning_process}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{assets/pics/cleaning_process.png}
+    \caption{Diagram alir proses pembersihan awal (Rule A dan Rule B) untuk menyeleksi \textit{flow} valid.}
+    \label{fig:cleaning_process}
+\end{figure}
+
+\subsubsection{Penyaringan Tambahan (Rule C)}
+
+Tahap akhir adalah penyaringan tambahan yang diimplementasikan oleh \citep{park2024fast}. Penyaringan ini (disebut Rule C) melibatkan penghapusan trafik \textit{broadcast} spesifik yang tidak membawa informasi aplikasi yang berguna. Sebuah \textit{flow} diidentifikasi sebagai \textit{spam beacon} ($f_{spam}$) jika memenuhi konjungsi logika tiga kondisi: protokol UDP, alamat tujuan \textit{broadcast}, dan \textit{payload} berisi string "Beacon", seperti dinyatakan dalam Persamaan \ref{eq:rule_c}.
+
+\begin{myequation}{Identifikasi Spam Beacon}
+        \label{eq:rule_c}
+        f_{spam} \iff 
+        \begin{cases} 
+            \text{Protocol}(f) = \text{UDP} \\
+            \text{DstIP}(f) = \text{255.255.255.255} \\
+            \text{"Beacon\textasciitilde"} \in \text{Payload}(f)
+        \end{cases}
+    \end{myequation}
+
+\textit{Flow} yang memenuhi $f_{spam}$ dibuang. Setelah tahap ini, diperoleh dataset final sejumlah \textbf{13.487 \textit{flow}}. Ketiga penyaringan ini diilustrasikan pada Gambar~\ref{fig:preprocessing_funnel}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{assets/pics/all_cleaning_process1.png}
+    \caption{Ilustrasi alir pra-pemrosesan data, menunjukkan reduksi dari data mentah menjadi dataset final melalui Rule A, B, dan C.}
+    \label{fig:preprocessing_funnel}
+\end{figure}
+
+\subsubsection{Implementasi Penyaringan (Rule A, B, dan C)}
+
+Ketiga aturan penyaringan (A, B, dan C) diimplementasikan dalam satu skrip Python menggunakan Scapy untuk membaca dan menganalisis setiap \textit{flow} \texttt{.pcap} satu per satu. Fungsi inti dari proses validasi ini ditunjukkan pada Kode~\ref{lst:scapy_filtering}.
+
+\begin{listing}[H]
+    \setstretch{1}    
+    \begin{algorithmic}[1] % [1] adds line numbers
+        
+        \State $DisallowedLayers \gets \{DNS, NTP, DHCP, BOOTP\}$
+        \State $DisallowedPorts \gets \{137, 1900, 5353, 5355\}$
+
+        \Procedure{IsFlowValid}{$pcap\_path$}
+            \State $packets \gets \Call{ReadPcap}{pcap\_path}$
+            \If{$packets$ is empty} \Return \textbf{false} \EndIf
+            
+            \State $first \gets packets[0]$
+            \State \Comment{Rule B: Validasi TCP Handshake (SYN flag)}
+            \If{$first$ is TCP \textbf{and} \text{'S'} $\notin$ $first.flags$}
+                \State \Return \textbf{false}
+            \EndIf
+
+            \State \Comment{Iterasi paket untuk Rule A dan C}
+            \For{\textbf{each} $pkt$ \textbf{in} $packets$}
+                \State \Comment{Rule A: Cek Layer Terlarang}
+                \If{$pkt$ has layer $\in DisallowedLayers$} 
+                    \State \Return \textbf{false} 
+                \EndIf
+
+                \If{$pkt$ is UDP}
+                    \State \Comment{Rule A: Cek Port Terlarang}
+                    \If{$pkt.sport \in DisallowedPorts$ \textbf{or} $pkt.dport \in DisallowedPorts$}
+                        \State \Return \textbf{false}
+                    \EndIf
+                    
+                    \State \Comment{Rule C: Cek UDP Beacon Broadcast}
+                    \If{$pkt.dst == \text{'255.255.255.255'}$ \textbf{and} $\text{"Beacon\textasciitilde"} \in pkt.payload$}
+                        \State \Return \textbf{false}
+                    \EndIf
+                \EndIf
+            \EndFor
+
+            \State \Return \textbf{true}
+        \EndProcedure
+
+        \Statex % Empty line for separation
+
+        \Procedure{MainFiltering}{}
+            \State \Call{CreateDirectory}{$OutputDirectory$}
+            
+            \For{\textbf{each} $file$ \textbf{in} $InputDirectory$}
+                \State $isValid \gets \Call{IsFlowValid}{file}$
+                
+                \If{$isValid$ \textbf{is true}}
+                    \State \Call{CopyFile}{$file, OutputDirectory$}
+                \EndIf
+            \EndFor
+        \EndProcedure
+
+    \end{algorithmic}
+        \caption{Penyaringan \textit{flow} menggunakan Scapy untuk menerapkan Rule A, B, dan C.} 
+    \label{lst:scapy_filtering}
+\end{listing}
+
+Setelah ketiga langkah pra-pemrosesan ini selesai, dataset final yang bersih berisi total \textbf{13.487 \textit{flow}}. Dataset yang telah difilter secara ketat inilah yang kemudian digunakan untuk semua proses ekstraksi fitur dan pelatihan model selanjutnya dalam penelitian ini.
+
+\subsection{Pemilihan \textit{Sample} dari \textit{Flow} yang Telah Di-ekstrak}
+
+Setelah proses pra-pemrosesan di bagian \ref{subsec:prapemrosesan} selesai, didapatkan total \textbf{13.487 \textit{flow}} yang bersih. Analisis awal terhadap 13.487 \textit{flow} ini mengungkapkan adanya ketidakseimbangan kelas (\textit{class imbalance}) yang ekstrem pada dataset. Seperti yang ditunjukkan pada Gambar \ref{fig:full_dist_before}, beberapa aplikasi seperti \textit{Skype} memiliki 4.704 sampel, sementara \textit{ICQ} dan \textit{AIM Chat} hanya memiliki kurang dari 50 sampel. Ketidakseimbangan ini dapat menyebabkan model klasifikasi menjadi bias terhadap kelas mayoritas dan memiliki performa buruk pada kelas minoritas.
+
+\begin{figure}[H]
+    \centering
+    \captionsetup{font=small}
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/binary_dist.png}
+        \caption{Tugas Biner (13.487 flow)}
+    \end{subfigure}
+
+    \vspace{0.5em}
+
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/category_dist.png}
+        \caption{Tugas Kategori (13.487 flow)}
+    \end{subfigure}
+
+    \vspace{0.5em}
+
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/application_dist.png}
+        \caption{Tugas Aplikasi (13.487 flow)}
+    \end{subfigure}
+
+    \caption{Distribusi dataset penuh (13.487 flow) sebelum kurasi. Terlihat jelas adanya ketidakseimbangan kelas yang signifikan.}
+    \label{fig:full_dist_before}
+\end{figure}
+
+Oleh karena itu, dilakukan langkah kurasi dataset untuk menciptakan dataset yang lebih seimbang untuk eksperimen. Dataset yang dikurasi ini (selanjutnya disebut Dataset v2) dirancang untuk memenuhi dua batasan utama:
+\begin{enumerate}
+    \item Untuk kesederhanaan, dataset akan berisi 6 kelas aplikasi yang paling representatif.
+    \item Untuk menjaga komparabilitas dengan penelitian lain \citep{park2024fast}, dataset harus mencakup \textit{semua} 6 kelas kategori (Chat, Email, File Transfer, P2P, Streaming, VoIP).
+\end{enumerate}
+
+Tantangannya adalah, jika hanya mengambil 6 aplikasi dengan jumlah sampel terbesar (misalnya \textit{Skype}, \textit{Email}, \textit{SCP}, \textit{VOIPBuster}, \textit{FTP}, \textit{Facebook}), batasan kedua tidak terpenuhi karena tidak ada perwakilan untuk kategori \textit{Streaming} dan \textit{P2P}.
+
+Solusinya adalah melakukan proses \textit{pick-and-choose} dengan memilih 6 aplikasi yang dapat menjadi ``perwakilan'' dengan jumlah sampel terbesar untuk \textit{setiap} kategori. Aplikasi yang terpilih adalah:
+\begin{itemize}
+    \item \textbf{Skype} (4.704 flow): Perwakilan terbesar untuk Chat, VoIP, dan File Transfer.
+    \item \textbf{Email} (1.901 flow): Perwakilan terbesar untuk Email.
+    \item \textbf{SCP} (1.741 flow): Perwakilan terbesar kedua untuk File Transfer.
+    \item \textbf{VOIPBuster} (1.196 flow): Perwakilan terbesar untuk VoIP-saja.
+    \item \textbf{YouTube} (379 flow): Perwakilan terbesar untuk Streaming.
+    \item \textbf{BitTorrent} (363 flow): Satu-satunya perwakilan untuk P2P.
+\end{itemize}
+
+Proses \textit{pick-and-choose} ini menghasilkan Dataset v2 dengan total \textbf{10.284 \textit{flow}}. Proses penyaringan ini diimplementasikan dengan skrip Python yang membaca 13.487 \textit{flow} dari direktori sumber dan hanya menyalin \textit{flow} yang termasuk dalam 6 aplikasi target ke direktori tujuan.
+
+Setelah proses kurasi ini selesai, distribusi kelas pada Dataset v2 (10.284 \textit{flow}) menjadi lebih seimbang, meskipun masih menunjukkan ketidakseimbangan yang wajar, seperti terlihat pada Gambar \ref{fig:v2_dist_after}. Dataset v2 (VPN/Non-VPN) inilah yang digunakan sebagai \textit{full dataset}, selain \textit{VPN Only} dataset yang akan dijelaskan di bagian berikutnya.
+
+\begin{figure}[H]
+    \centering
+    \captionsetup{font=small}
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/full-binary_dist.png}
+        \caption{Tugas Biner (v2)}
+    \end{subfigure}
+
+    \vspace{0.5em}
+
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/full-category_dist.png}
+        \caption{Tugas Kategori (v2)}
+    \end{subfigure}
+
+    \vspace{0.5em}
+
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/full-application_dist.png}
+        \caption{Tugas Aplikasi (v2)}
+    \end{subfigure}
+
+    \caption{Distribusi Dataset v2 (10.284 flow) setelah proses kurasi.}
+    \label{fig:v2_dist_after}
+\end{figure}
+
+\subsection{Kurasi Dataset Khusus VPN (VPN-Only)}
+Selain Dataset v2 (10.284 \textit{flow}) yang digunakan untuk eksperimen ‘penuh’ (VPN/Non-VPN), penelitian ini juga bertujuan untuk mengevaluasi performa model pada skenario yang lebih spesifik: mengklasifikasikan trafik yang sudah diketahui terenkripsi (VPN).
+
+Tantangan utamanya adalah, jika kita sekadar memfilter Dataset v2 (10.284 \textit{flow}) untuk sampel VPN-nya, dataset yang dihasilkan menjadi tidak representatif dan trivial. Sebagai contoh, aplikasi SCP (1.741 \textit{flow}) akan hilang seluruhnya karena tidak memiliki sampel VPN. Lebih kritis lagi, kategori P2P hanya akan diwakili oleh BitTorrent, dan Email hanya oleh Email. Ini berarti model tidak akan belajar membedakan ‘Chat’ dari ‘P2P’, melainkan hanya membedakan ‘Skype’ dari ‘BitTorrent’, yang merupakan tugas yang jauh lebih mudah.
+
+Untuk mengatasi ini, sebuah dataset ‘Khusus VPN’ yang baru dikurasi langsung dari 13.487 \textit{flow} bersih. Tujuannya adalah untuk menciptakan dataset yang tetap menantang dengan tetap mencakup semua 6 kategori. Dataset ini memiliki batasan yang tidak terhindarkan: kategori P2P dan Email masing-masing hanya akan diwakili oleh BitTorrent (363 \textit{flow} VPN) dan Email (137 \textit{flow} VPN). Oleh karena itu, tantangan sebenarnya dari dataset ini adalah kemampuan model untuk membedakan kategori yang saling tumpang tindih (Chat, VoIP, File Transfer, Streaming) yang diwakili oleh beberapa aplikasi.
+
+Untuk memaksimalkan tumpang tindih ini, 9 aplikasi dipilih:
+\begin{itemize}
+    \item \textbf{Chat/VoIP/File Transfer (tumpang tindih):} Skype (1246 \textit{flow}), Hangout (325 \textit{flow}), Facebook (247 \textit{flow})
+    \item \textbf{File transfer tambahan:} FTP (101 \textit{flow})
+    \item \textbf{Streaming (variasi):} YouTube (157 \textit{flow}), Spotify (91 \textit{flow}), Netflix (63 \textit{flow})
+    \item \textbf{Perwakilan kategori wajib:} BitTorrent (363 \textit{flow}), Email (137 \textit{flow})
+\end{itemize}
+
+Proses penyaringan ini menghasilkan dataset final ‘Khusus VPN’ yang terdiri dari 2.730 \textit{flow} VPN. Distribusi kelas untuk dataset ini ditunjukkan pada Gambar \ref{fig:vpn_only_dist}.
+
+\begin{figure}[H]
+    \centering
+    \captionsetup{font=small}
+\begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/vpnonly-category_dist.png}
+        \caption{Tugas Kategori (Khusus VPN)}
+    \end{subfigure}
+
+    \vspace{0.5em}
+
+    \begin{subfigure}[b]{0.7\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{assets/pics/vpnonly-application_dist.png}
+        \caption{Tugas Aplikasi (Khusus VPN)}
+    \end{subfigure}
+
+    \caption{Distribusi Dataset 'Khusus VPN' (2.730 flow) setelah kurasi dinamis. Tugas Biner secara alami tidak lagi disertakan dalam konteks ini).}
+    \label{fig:vpn_only_dist}
+\end{figure}
+
+\section{Perancangan dan Implementasi \textit{Hybrid Flow Vector} (HFV)}
+
+\subsection{Pengantar metode HFV: $\Omega = (\alpha, \beta, \gamma)$}
+\label{subsec:kerangka_hfv}
+
+Klasifikasi lalu lintas jaringan terenkripsi merupakan tantangan fundamental dalam manajemen jaringan modern dan keamanan siber. Teknik tradisional seperti \textit{Deep Packet Inspection} (DPI) menjadi tidak efektif karena enkripsi menyembunyikan konten \textit{payload} \citep{razooqi2025vpn}. Akibatnya, penelitian beralih ke analisis metadata dan karakteristik perilaku \textit{flow} untuk melakukan identifikasi.
+
+Pendekatan yang ada saat ini umumnya terbagi menjadi dua kategori: (1) model berbasis statistik, yang menganalisis fitur-fitur level \textit{flow} seperti ukuran paket dan \textit{Inter-Arrival Time} (IAT) \citep{DraperGil2016}, dan (2) model berbasis \textit{Deep Learning} (DL), yang dapat belajar representasi kompleks langsung dari data mentah, seperti \textit{raw packet payload} \citep{Lotfollahi2019}.
+
+Namun, kedua pendekatan memiliki keterbatasan jika digunakan secara terpisah. Model statistik murni mungkin gagal menangkap pola-pola rumit di level \textit{byte} yang tersembunyi di dalam \textit{payload} terenkripsi. Sebaliknya, model DL yang hanya berfokus pada \textit{payload} mungkin kehilangan konteks perilaku makroskopis dari keseluruhan \textit{flow}.
+
+Untuk mengatasi keterbatasan ini, penelitian ini merancang dan mengimplementasikan sebuah metode representasi fitur hibrida, yang disebut \textbf{\textit{Hybrid Flow Vector} (HFV)}. Hipotesis utamanya adalah bahwa dengan menggabungkan dua "pandangan" yang berbeda dari sebuah \textit{flow}---yaitu pola mikroskopis \textit{level-byte} dan perilaku makroskopis \textit{level-flow}---kita dapat menciptakan sebuah "sidik jari" (\textit{fingerprint}) yang jauh lebih kaya dan tangguh untuk klasifikasi. Pendekatan hibrida yang menggabungkan berbagai jenis fitur telah menunjukkan potensi besar dalam penelitian terkait \citep{jorgensen2023extensible}.
+
+Secara formal, HFV ($\Omega$) didefinisikan sebagai gabungan dari tiga komponen vektor yang berbeda:
+\begin{myequation}{Definisi \textit{Hybrid Flow Vector} (HFV)}
+    \label{eq:hfv_general}
+    \Omega = \alpha \oplus \beta \oplus \gamma
+\end{myequation}
+dimana $\oplus$ melambangkan operasi konkatenasi (penggabungan) vektor.
+
+Setiap komponen dirancang untuk menangkap aspek unik dari \textit{flow} jaringan:
+\begin{itemize}
+    \item \textbf{Komponen $\alpha$ (alpha)}: Sebuah vektor fitur \textit{deep learning} yang diekstraksi dari \textit{raw payload} paket-paket pertama \textit{flow}. Komponen ini mewakili \textbf{pola level-byte} dan dirancang untuk menangkap tanda tangan (\textit{signature}) mikroskopis yang mungkin spesifik untuk aplikasi tertentu, yang diekstraksi menggunakan arsitektur \textit{1D-Convolutional Neural Network} (1D-CNN).
+
+    \item \textbf{Komponen $\beta$ (beta)}: Sebuah vektor fitur statistik yang komprehensif dari \textbf{keseluruhan \textit{flow}} (\textit{flow-level}). Komponen ini mencakup statistik deskriptif (mean, std, min, max, dll.) dari ukuran paket dan IAT untuk seluruh durasi \textit{flow}, yang menggambarkan perilaku makroskopis.
+
+    \item \textbf{Komponen $\gamma$ (gamma)}: Sebuah vektor fitur statistik yang berfokus pada \textbf{level \textit{burst}} komunikasi. Komponen ini dirancang untuk menangkap pola komunikasi \textit{on-off} (kirim-tunggu-kirim) yang sering terjadi pada aplikasi interaktif atau \textit{streaming}.
+\end{itemize}
+
+Dengan mengintegrasikan ketiga komponen ini, vektor HFV $\Omega$ menyediakan representasi multi-modal yang holistik dari setiap \textit{flow}, yang menjadi dasar untuk proses klasifikasi \textit{machine learning} yang akan dijelaskan selanjutnya. Bagian-bagian berikut akan merinci perancangan dan implementasi teknis dari ekstraksi masing-masing komponen $\alpha$, $\beta$, dan $\gamma$.
+
+\subsection{Komponen \texorpdfstring{$\alpha$}{alpha}: Ekstraksi Fitur 1D-CNN dari Pola Byte-Level}
+\label{subsec:komponen_alpha}
+
+Komponen $\alpha$ dirancang untuk menangkap \textbf{pola mikroskopis level-byte} yang ada di dalam \textit{payload} terenkripsi. Berbeda dengan analisis statistik ($\beta$ dan $\gamma$) yang melihat \textit{flow} dari luar, komponen $\alpha$ mencoba "mengintip" ke dalam data mentah itu sendiri.
+
+Literatur telah menunjukkan bahwa meskipun terenkripsi, \textit{raw packet payload} seringkali masih mengandung pola-pola yang dapat dipelajari oleh model \textit{Deep Learning}, khususnya \textit{1D-Convolutional Neural Networks} (1D-CNN) \citep{wang2017end, Lotfollahi2019}. Pola-pola ini dapat berupa artefak dari protokol aplikasi, \textit{padding}, atau tanda tangan (\textit{signature}) unik lainnya yang tidak dihilangkan oleh enkripsi.
+
+Proses ekstraksi ini terdiri dari dua tahap utama: konstruksi tensor input dan pembelajaran representasi laten menggunakan \textit{Deep Learning}.
+
+\subsubsection{Representasi Input dan Normalisasi}
+Agar dapat diproses oleh Neural Network, setiap \textit{flow} dikonversi menjadi representasi matriks numerik. Penelitian ini mengambil $N=10$ paket pertama dari setiap \textit{flow}, di mana setiap paket dipotong atau di-\textit{padding} hingga mencapai panjang tetap $L=784$ byte.
+
+Data mentah (\textit{raw bytes}) yang bernilai integer $[0, 255]$ dinormalisasi menjadi bilangan riil $[0.0, 1.0]$ untuk mempercepat konvergensi gradien saat pelatihan. Secara matematis, jika $x_{i,j}$ adalah nilai byte ke-$j$ pada paket ke-$i$, maka nilai input ter-normalisasi $x'_{i,j}$ didefinisikan pada Persamaan \ref{eq:alpha_norm}.
+
+\begin{myequation}{Normalisasi Input Payload}
+    \label{eq:alpha_norm}
+    x'_{i,j} = \frac{x_{i,j}}{255.0}, \quad \forall i \in [1, N], \forall j \in [1, L]
+\end{myequation}
+
+Hasil dari tahap ini adalah tensor input $\mathbf{X} \in \mathbb{R}^{N \times L}$ untuk setiap sampel \textit{flow}.
+
+\subsubsection{Arsitektur 1D-CNN dan Ekstraksi Fitur Laten}
+Untuk mengekstraksi fitur dari data sekuensial ini, digunakan arsitektur \textit{1D-Convolutional Neural Network} (1D-CNN). Model ini dilatih dengan pendekatan \textit{supervised learning} untuk mengklasifikasikan aplikasi (tugas pendahuluan), namun tujuan utamanya adalah melatih lapisan \textit{Dense} internal sebagai feature encoder.
+
+Arsitektur model dirancang dengan tiga blok konvolusi bertingkat untuk menangkap pola dari level rendah hingga tinggi, diikuti oleh lapisan Dense 128-neuron yang berfungsi sebagai \textit{bottleneck}. Implementasi spesifik arsitektur ini menggunakan Keras ditunjukkan pada Kode \ref{lst:cnn_arch}.
+
+\begin{listing}[H]
+\setstretch{1}
+    \begin{minted}[fontsize=\footnotesize]{python}
+def build_encoder_model(input_shape, num_classes):
+    inputs = Input(shape=input_shape) # (7840, 1) after flatten
+    
+    # Block 1: Low-level patterns
+    x = Conv1D(32, kernel_size=7, activation='relu', padding='same')(inputs)
+    x = MaxPooling1D(pool_size=4)(x)
+
+    # Block 2: Mid-level patterns
+    x = Conv1D(64, kernel_size=5, activation='relu', padding='same')(x)
+    x = MaxPooling1D(pool_size=4)(x)
+
+    # Block 3: High-level complex patterns
+    x = Conv1D(128, kernel_size=3, activation='relu', padding='same')(x)
+    x = MaxPooling1D(pool_size=4)(x)
+
+    x = Flatten()(x)
+    
+    # --- The Encoder Layer (Feature Alpha) ---
+    # Layer ini diberi nama agar output-nya bisa diekstrak
+    features = Dense(128, activation='relu', name="encoder_output")(x)
+    
+    # Classifier Head (Dibuang setelah training)
+    x = Dropout(0.5)(features)
+    outputs = Dense(num_classes, activation='softmax')(x)
+    
+    return Model(inputs, outputs)
+    \end{minted}
+    \captionsetup{font=small}
+    \caption{Implementasi arsitektur 1D-CNN untuk mempelajari representasi fitur $\alpha$.}
+    \label{lst:cnn_arch}
+\end{listing}
+
+Setelah model dilatih hingga konvergen, lapisan klasifikasi akhir (\textit{Softmax}) dibuang. Model yang tersisa berfungsi sebagai fungsi pemetaan non-linear $f_{enc}(\cdot)$ yang mentransformasi tensor input mentah menjadi vektor fitur $\mathbf{v}_{\alpha}$ berdimensi 128, seperti dinyatakan dalam Persamaan \ref{eq:alpha_vector}.
+
+\begin{myequation}{Ekstraksi Vektor Fitur Alpha}
+    \label{eq:alpha_vector}
+    \mathbf{v}_{\alpha} = f_{enc}(\mathbf{X}; \theta_{trained}) \in \mathbb{R}^{128}
+\end{myequation}
+
+Dimana $\theta_{trained}$ adalah parameter bobot CNN yang telah optimal. Ilustrasi proses transformasi dari paket mentah menjadi vektor fitur ini dapat dilihat pada Gambar \ref{fig:cnn_architecture}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{assets/pics/cnn_architecture_genai.png}
+    \caption{Visualisasi pipeline ekstraksi fitur $\alpha$: dari matriks \textit{payload} mentah, melalui lapisan konvolusi, hingga menjadi vektor laten 128-dimensi.}
+    \label{fig:cnn_architecture}
+\end{figure}
+
+\subsection{Komponen \texorpdfstring{$\beta$}{beta}: Statistik Level Flow}
+\label{subsec:komponen_beta}
+
+Komponen $\beta$ (Beta) dirancang untuk menangkap \textbf{pola makroskopis} dari keseluruhan \textit{flow} jaringan. Komponen ini didasarkan pada premis bahwa meskipun konten paket dienkripsi, karakteristik perilaku statistik---seperti distribusi ukuran paket dan ritme waktu kedatangan---tetap dapat diobservasi dan membentuk \textit{fingerprint} yang unik untuk setiap aplikasi \citep{DraperGil2016}.
+
+Berbeda dengan pendekatan naif yang hanya menghitung statistik global, penelitian ini menerapkan analisis bidireksional yang memisahkan trafik menjadi dua arah: \textit{Client-to-Server} (C2S) dan \textit{Server-to-Client} (S2C).
+
+\subsubsection{Ekstraksi Atribut Bidireksional}
+Untuk setiap \textit{flow} $f$, paket-paket dipisahkan berdasarkan arah alirannya. Dari pemisahan ini, diekstraksi empat sekuens data utama: Ukuran Paket ($Z$) dan \textit{Inter-Arrival Time} ($I$) untuk kedua arah.
+
+Secara formal, jika $P_{c2s}$ dan $P_{s2c}$ adalah himpunan paket pada arah keluar dan masuk, maka himpunan observasi didefinisikan pada Persamaan \ref{eq:beta_vector_collection}:
+
+\begin{myequation}{Himpunan Observasi Komponen Statistik Fitur Beta}
+\label{eq:beta_vector_collection}
+\begin{aligned}
+    \mathbf{Z}^{c2s} &= \left\{ \mathrm{Size}(p) \mid p \in P_{c2s} \right\} \\
+    \mathbf{I}^{c2s} &= \left\{ t_{k+1} - t_k \mid p_k, p_{k+1} \in P_{c2s} \right\}
+\end{aligned}
+\end{myequation}
+
+Definisi serupa berlaku untuk arah S2C ($\mathbf{Z}^{s2c}$ dan $\mathbf{I}^{s2c}$).
+
+\subsubsection{Konstruksi Vektor Fitur Statistik}
+Untuk mengubah sekuens data yang panjangnya bervariasi menjadi vektor fitur berdimensi tetap, diterapkan fungsi pemetaan statistik $\mathcal{F}: \mathbb{R}^n \to \mathbb{R}^9$. Fungsi ini menghitung 9 statistik deskriptif untuk setiap himpunan data: \textit{Count, Sum, Mean, Standard Deviation, Min, Max, Median, Skewness,} dan \textit{Kurtosis}.
+
+Vektor fitur $\mathbf{v}_{\beta}$ kemudian dikonstruksi dengan menggabungkan (konkatenasi) hasil statistik dari keempat himpunan data tersebut, ditambah dengan statistik global \textit{flow} (Durasi, Total Paket, Total Volume). Definisi formal vektor $\mathbf{v}_{\beta}$ dinyatakan dalam Persamaan \ref{eq:beta_vector}.
+
+\begin{myequation}{Konstruksi Vektor Fitur Beta}
+    \label{eq:beta_vector}
+    \mathbf{v}_{\beta} = \left[ \mathcal{F}(\mathbf{Z}^{c2s}) \oplus \mathcal{F}(\mathbf{Z}^{s2c}) \oplus \mathcal{F}(\mathbf{I}^{c2s}) \oplus \mathcal{F}(\mathbf{I}^{s2c}) \oplus \mathbf{v}_{global} \right]
+\end{myequation}
+
+Dimana $\oplus$ adalah operasi konkatenasi. Dengan 9 statistik untuk 4 himpunan data ($9 \times 4 = 36$) ditambah 3 fitur global, total dimensi vektor $\mathbf{v}_{\beta}$ adalah \textbf{39 fitur}.
+
+Visualisasi proses ekstraksi statistik bidireksional ini dapat dilihat pada Gambar \ref{fig:beta_extraction}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{assets/pics/beta_extraction_genai.png}
+    \caption{Diagram alir ekstraksi fitur $\beta$: Pemisahan trafik bidireksional, perhitungan statistik deskriptif, dan penyusunan vektor fitur 39-dimensi.}
+    \label{fig:beta_extraction}
+\end{figure}
+
+\subsection{Komponen \texorpdfstring{$\gamma$}{gamma}: Statistik Level Burst}
+\label{subsec:komponen_gamma}
+
+Komponen $\gamma$ (Gamma) difokuskan untuk menangkap dinamika temporal atau ritme komunikasi dari sebuah aliran. Berbeda dengan komponen $\beta$ yang melihat statistik global, komponen ini membedah struktur \textit{on-off} (kirim-tunggu-kirim) yang menjadi ciri khas aplikasi interaktif seperti VoIP, \textit{messaging}, dan \textit{streaming} adaptif \citep{Lotfollahi2019, Fesl2024}.
+
+Analisis ini membagi sebuah \textit{flow} kontinu menjadi segmen-segmen diskrit yang disebut \textit{burst}, dipisahkan oleh periode diam (\textit{idle time}).
+
+\subsubsection{Model Matematis Segmentasi Burst}
+Kunci dari ekstraksi fitur ini adalah algoritma segmentasi yang menentukan batas antar \textit{burst}. Penelitian ini mendefinisikan \textit{threshold} waktu diam sebesar $\tau_{idle} = 1.0$ detik \citep{DraperGil2016, Razooqi2025-bo}.
+
+Secara formal, misalkan sebuah \textit{flow} $F$ terdiri dari urutan paket dengan waktu kedatangan $T = \{t_1, t_2, \dots, t_n\}$. Sebuah sub-sekuens paket $B_k = \{p_i, p_{i+1}, \dots, p_j\}$ didefinisikan sebagai satu \textit{burst} ke-$k$ jika dan hanya jika memenuhi kondisi batas dan kontinuitas pada Persamaan \ref{eq:burst_segmentation}.
+
+\begin{myequation}{Kriteria Segmentasi Burst}
+    \label{eq:burst_segmentation}
+    B_k \iff 
+    \begin{cases} 
+    t_{m+1} - t_m < \tau_{idle}, & \forall m \in [i, j-1] \quad (\text{Kontinuitas}) \\
+    t_{i} - t_{i-1} \ge \tau_{idle} & (\text{Batas Awal}, \text{ jika } i > 1) \\
+    t_{j+1} - t_{j} \ge \tau_{idle} & (\text{Batas Akhir}, \text{ jika } j < n)
+    \end{cases}
+\end{myequation}
+
+Persamaan ini menyatakan bahwa paket-paket dalam satu \textit{burst} harus memiliki jarak waktu yang rapat ($< 1.0$s), dan terpisah dari \textit{burst} lain oleh jeda yang signifikan ($\ge 1.0$s). Ilustrasi visual dari logika segmentasi ini ditampilkan pada Gambar \ref{fig:burst_logic}.
+
+\begin{figure}[H]
+    \centering
+    
+    \includegraphics[width=1.0\textwidth]{assets/pics/burst_logic_genai.png}
+    \caption{Visualisasi segmentasi \textit{burst}: Paket-paket dikelompokkan berdasarkan kedekatan waktu kedatangan (IAT < 1.0s) dan dipisahkan oleh \textit{idle time}.}
+    \label{fig:burst_logic}
+\end{figure}
+
+\subsubsection{Ekstraksi Fitur Statistik Burst}
+Setelah \textit{flow} disegmentasi menjadi himpunan \textit{burst} $\mathbf{B} = \{B_1, B_2, \dots, B_m\}$, empat variabel utama diekstraksi dari setiap \textit{burst}:
+\begin{enumerate}
+    \item \textbf{Packet Count ($C$):} Jumlah paket dalam setiap \textit{burst}.
+    \item \textbf{Volume ($V$):} Total \textit{byte} yang dikirim dalam setiap \textit{burst}.
+    \item \textbf{Duration ($D$):} Lama waktu aktif setiap \textit{burst} ($t_{akhir} - t_{awal}$).
+    \item \textbf{Idle Time ($I$):} Durasi jeda sebelum \textit{burst} berikutnya dimulai.
+\end{enumerate}
+
+Sama seperti komponen $\beta$, fungsi statistik $\mathcal{F}$ diterapkan pada keempat himpunan nilai ini untuk menghasilkan vektor fitur statistik. Vektor fitur $\mathbf{v}_{\gamma}$ dikonstruksi sesuai Persamaan \ref{eq:gamma_vector}.
+
+\begin{myequation}{Konstruksi Vektor Fitur Gamma}
+    \label{eq:gamma_vector}
+    \mathbf{v}_{\gamma} = \left[ m, \mathcal{F}(\mathbf{C}), \mathcal{F}(\mathbf{V}), \mathcal{F}(\mathbf{D}), \mathcal{F}(\mathbf{I}) \right]
+\end{myequation}
+
+Dimana $m$ adalah jumlah total \textit{burst}. Dengan 9 statistik untuk 4 variabel ($9 \times 4 = 36$) ditambah fitur jumlah \textit{burst} ($m$), komponen ini berkontribusi \textbf{37 fitur} pada vektor akhir \citep{kotak2025vpn, Liu2024}.
+
+\subsection{Integrasi Komponen HFV dan Pembuatan Basis Data Fitur}
+\label{subsec:integrasi_hfv}
+
+Tahap akhir dari rekayasa fitur adalah mengintegrasikan ketiga komponen yang telah diekstraksi secara independen ($\alpha, \beta, \gamma$) menjadi satu representasi vektor tunggal yang holistik. Proses ini dikenal sebagai \textit{Multi-modal Feature Fusion}.
+
+Tujuan integrasi ini adalah menggabungkan kekuatan representasi \textit{deep learning} (pola level-byte) dengan rekayasa fitur statistik (pola level-flow dan level-burst) untuk menciptakan "sidik jari" lalu lintas yang komprehensif.
+
+\subsubsection{Definisi Vektor Hibrida (\textit{Hybrid Flow Vector})}
+Secara formal, untuk setiap \textit{flow} $i$, didefinisikan sebuah vektor fitur hibrida $\Omega_i$ sebagai hasil operasi konkatenasi ($\oplus$) dari tiga sub-vektor komponen. Definisi matematis dan analisis dimensi vektor ini dinyatakan dalam Persamaan \ref{eq:hfv_concat}.
+
+\begin{myequation}{Vektor \textit{Hybrid Flow Vector} (HFV)}
+    \label{eq:hfv_concat}
+    \Omega = \mathbf{v}_{\alpha} \oplus \mathbf{v}_{\beta} \oplus \mathbf{v}_{\gamma}
+\end{myequation}
+
+Dimana dimensi total dari ruang fitur $\Omega$ adalah jumlahan dari dimensi masing-masing komponen:
+\begin{align*}
+    \text{dim}(\Omega) &= \text{dim}(\mathbf{v}_{\alpha}) + \text{dim}(\mathbf{v}_{\beta}) + \text{dim}(\mathbf{v}_{\gamma}) \\
+    &= 128 + 39 + 37 \\
+    &= \mathbf{204} \text{ Fitur}
+\end{align*}
+
+Setiap dimensi dalam vektor $\Omega$ merepresentasikan atribut numerik yang akan menjadi input bagi model klasifikasi.
+
+\subsubsection{Konsistensi Dataset dan Integritas Sampel}
+Karena proses ekstraksi dilakukan melalui tiga \textit{pipeline} yang berbeda, integritas data harus dijaga dengan memastikan bahwa hanya \textit{flow} yang valid pada ketiga komponen yang disertakan dalam dataset akhir.
+
+Misalkan $S_\alpha, S_\beta,$ dan $S_\gamma$ adalah himpunan identitas \textit{flow} (berdasarkan \textit{filename} unik) yang berhasil diproses oleh masing-masing komponen. Dataset final $\mathcal{D}$ dibentuk melalui operasi irisan himpunan (\textit{intersection}) seperti pada Persamaan \ref{eq:data_integrity}.
+
+\begin{myequation}{Integritas Dataset Final}
+    \label{eq:data_integrity}
+    \mathcal{D} = \{ \Omega_f \mid f \in S_\alpha \cap S_\beta \cap S_\gamma \}
+\end{myequation}
+
+Operasi ini secara implisit membuang sampel yang rusak atau kosong pada salah satu tahap ekstraksi (misalnya, \textit{flow} tanpa \textit{payload} yang dibuang oleh komponen $\alpha$). Hasil akhir dari proses integrasi ini adalah matriks fitur $\mathbf{X}_{final} \in \mathbb{R}^{M \times 204}$, dimana $M$ adalah jumlah total sampel yang valid \citep{jorgensen2023extensible}.
+
+Visualisasi konseptual dari penggabungan vektor ini ditampilkan pada Gambar \ref{fig:feature_fusion}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{assets/pics/feature_fusion_genai1.png}
+    \caption{Konsep \textit{Feature Fusion} HFV: Penyatuan vektor fitur 1D-CNN ($\alpha$), statistik flow ($\beta$), dan statistik burst ($\gamma$) menjadi satu vektor 204-dimensi.}
+    \label{fig:feature_fusion}
+\end{figure}
+
+\subsection{Arsitektur Model Machine Learning untuk Klasifikasi}
+\label{subsec:arsitektur_model}
+
+Bagian terakhir dari sistem yang diusulkan adalah arsitektur klasifikasi yang bertugas memetakan vektor fitur HFV ke kelas target. Penelitian ini mengadopsi pendekatan \textit{Ensemble Learning} dengan metode \textbf{Soft Voting}, yang menggabungkan kekuatan generalisasi dari \textit{Random Forest} (RF) dan kemampuan \textit{boosting} dari \textit{XGBoost} \citep{shao2024comparison}.
+
+\subsubsection{Pipeline Klasifikasi dan Standardisasi}
+Sebelum masuk ke model klasifikasi, vektor fitur $\Omega$ melewati tahap pra-pemrosesan untuk memastikan stabilitas numerik. Mengingat komponen $\beta$ (volume byte) dan $\gamma$ (durasi) memiliki rentang nilai yang sangat variatif, teknik \textit{Z-score Standardization} diterapkan.
+
+Setiap fitur $x$ dinormalisasi menjadi $z$ agar memiliki rata-rata nol dan variansi satu, sesuai Persamaan \ref{eq:standardization}.
+
+\begin{myequation}{Standardisasi Fitur (Z-score)}
+    \label{eq:standardization}
+    z = \frac{x - \mu}{\sigma}
+\end{myequation}
+
+Dimana $\mu$ adalah rata-rata dan $\sigma$ adalah standar deviasi dari data latih. Langkah ini krusial untuk mencegah bias model terhadap fitur dengan magnitudo besar \citep{scikitlearnStandardScaler}.
+
+\subsubsection{Mekanisme Ensemble Soft Voting}
+Inti dari arsitektur klasifikasi ini adalah mekanisme \textit{Soft Voting}. Berbeda dengan \textit{Hard Voting} yang hanya menghitung mayoritas label kelas, \textit{Soft Voting} mempertimbangkan tingkat keyakinan (probabilitas) dari setiap model dasar (\textit{base learner}).
+
+Misalkan $P_{RF}(c|\mathbf{x})$ dan $P_{XGB}(c|\mathbf{x})$ adalah probabilitas bahwa input $\mathbf{x}$ termasuk dalam kelas $c$ yang diprediksi oleh Random Forest dan XGBoost. Keputusan kelas akhir $\hat{y}$ ditentukan dengan memilih kelas yang memiliki rata-rata probabilitas tertimbang tertinggi, seperti didefinisikan secara formal pada Persamaan \ref{eq:soft_voting_pred}.
+
+\begin{myequation}{Prediksi Soft Voting}
+    \label{eq:soft_voting_pred}
+    \hat{y} = \arg \max_{c \in C} \left( w_{RF} \cdot P_{RF}(c|\mathbf{x}) + w_{XGB} \cdot P_{XGB}(c|\mathbf{x}) \right)
+\end{myequation}
+
+Dimana $w$ adalah bobot kontribusi model (pada penelitian ini $w_{RF} = w_{XGB} = 0.5$ untuk skenario seimbang). Pendekatan ini terbukti lebih \textit{robust} karena memberikan penalti pada model yang memprediksi salah dengan keyakinan tinggi, dan menghargai model yang memprediksi benar dengan margin probabilitas yang jelas \citep{probst2019tunability}.
+
+Arsitektur lengkap dari pipeline klasifikasi ini diilustrasikan pada Gambar \ref{fig:classification_pipeline}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{assets/pics/soft_voting_arch_genai.png}
+    \caption{Arsitektur Ensemble Soft Voting: Input HFV dinormalisasi, diproses secara paralel oleh RF dan XGBoost, kemudian probabilitasnya dirata-rata untuk menghasilkan prediksi akhir.}
+    \label{fig:classification_pipeline}
+\end{figure}
+
+\subsection{Konfigurasi Model dan Optimasi Hiperparameter}
+\label{subsec:model_config}
+
+Kinerja model \textit{ensemble} sangat bergantung pada pemilihan hiperparameter yang optimal. Mengingat ruang pencarian parameter yang luas untuk Random Forest dan XGBoost, penelitian ini menerapkan strategi pencarian acak (\textit{Randomized Search}) yang dipadukan dengan validasi silang (\textit{Cross-Validation}).
+
+\subsubsection{Proses Penyetelan Hiperparameter}
+Tujuan dari proses ini adalah menemukan kombinasi parameter $\theta^*$ yang meminimalkan fungsi kerugian atau memaksimalkan metrik evaluasi (F1-Score) pada data validasi. Secara matematis, proses optimasi ini didefinisikan pada Persamaan \ref{eq:hyperparam_opt}.
+
+\begin{myequation}{Optimasi Hiperparameter}
+    \label{eq:hyperparam_opt}
+    \theta^* = \arg \max_{\theta \in \Theta} \left( \frac{1}{K} \sum_{k=1}^{K} \text{Metric}(f(X_{val}^{(k)}; \theta), y_{val}^{(k)}) \right)
+\end{myequation}
+
+Dimana $\Theta$ adalah ruang pencarian parameter, $K$ adalah jumlah lipatan validasi (5-fold CV), dan $f$ adalah model klasifikasi.
+
+Eksperimen dilakukan secara terpisah untuk setiap skenario tugas (Biner, Kategori, Aplikasi) guna menangkap karakteristik unik masing-masing distribusi kelas. Hasil parameter terbaik (\textit{Best Parameters}) yang diperoleh dari proses ini kemudian ditetapkan (\textit{hardcoded}) sebagai konfigurasi final model, sebagaimana dirangkum dalam Tabel \ref{tab:best_params}.
+
+\begin{table}[H]
+    \centering
+    \caption{Konfigurasi Parameter Terbaik untuk Ensemble Soft Voting (Mode FULL)}
+    \label{tab:best_params}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}llll@{}}
+        \toprule
+        \textbf{Tugas Klasifikasi} & \textbf{Model} & \textbf{Parameter Kunci} & \textbf{Peran dalam Ensemble} \\ 
+        \midrule
+        \multirow{2}{*}{\textbf{Binary} (2 Kelas)} & Random Forest & $N_{est}=300$, $Depth=20$, $Crit=Entropy$ & \textit{Base Learner} 1 \\
+         & XGBoost & $N_{est}=200$, $LR=0.1$, $Depth=6$ & \textit{Base Learner} 2 \\
+        \midrule
+        \multirow{2}{*}{\textbf{Category} (6 Kelas)} & XGBoost & $N_{est}=100$, $LR=0.2$, $Depth=10$ & \textit{Base Learner} 1 \\
+         & Random Forest & $N_{est}=200$, $Depth=20$, $Crit=Gini$ & \textit{Base Learner} 2 \\
+        \midrule
+        \multirow{2}{*}{\textbf{Application} (6 Kelas)} & Random Forest & $N_{est}=100$, $Depth=None$, $Crit=Gini$ & \textit{Base Learner} 1 \\
+         & XGBoost & $N_{est}=200$, $LR=0.1$, $Depth=6$ & \textit{Base Learner} 2 \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+\subsection{Algoritma Eksekusi Klasifikasi}
+\label{subsec:algo_klasifikasi}
+
+Berdasarkan arsitektur dan konfigurasi yang telah ditetapkan, alur kerja sistem klasifikasi diimplementasikan dalam sebuah algoritma terstruktur. Algoritma ini mencakup tahapan inisialisasi pipeline, pembagian data (\textit{stratified splitting}), pelatihan model hibrida, hingga evaluasi akhir.
+
+Logika prosedural dari sistem klasifikasi HFV ditunjukkan pada Kode~\ref{lst:alg_classifierg}.
+
+\begin{listing}[H]
+    \setstretch{1}    
+    \begin{algorithmic}[1]
+        \Require Dataset HFV ($\mathcal{D}$), Mode Eksperimen ($E \in \{\text{FULL, VPN\_ONLY}\}$), Daftar Tugas $T$
+        \Ensure Laporan Kinerja Model (Akurasi, F1-Score)
+
+        \Statex \Comment{\textbf{Fungsi Inisialisasi Model}}
+        \Function{GetVotingPipeline}{$task, mode$}
+            \State $\theta_{RF}, \theta_{XGB} \gets \text{LoadBestParams}(task, mode)$
+            \State $Model_{RF} \gets \textbf{new } \text{RandomForest}(\theta_{RF})$
+            \State $Model_{XGB} \gets \textbf{new } \text{XGBoost}(\theta_{XGB})$
+            
+            \State \Comment{Inisialisasi Soft Voting Ensemble}
+            \State $Ensemble \gets \text{VotingClassifier}(\{Model_{RF}, Model_{XGB}\}, \text{voting='soft'})$
+            
+            \State \Comment{Bungkus dalam Pipeline dengan Standard Scaler}
+            \State \Return $\textbf{new } \text{Pipeline}(\text{StandardScaler}, Ensemble)$
+        \EndFunction
+
+        \Statex \Comment{\textbf{Prosedur Utama}}
+        \Procedure{MainExecution}{}
+            \State $df \gets \text{LoadCSV}(\mathcal{D})$
+            
+            \For{\textbf{each} $task$ \textbf{in} $T$}
+                \State \textbf{print}("Memproses Tugas: " + $task$)
+                
+                \State \Comment{Persiapan Data \& Encoding Label}
+                \State $\mathbf{X} \gets df[\text{HFV\_Features}]$
+                \State $\mathbf{y} \gets \text{LabelEncoder}(df[task])$
+                
+                \State \Comment{Split Data 80:20 secara Stratified}
+                \State $\mathbf{X}_{train}, \mathbf{X}_{test}, \mathbf{y}_{train}, \mathbf{y}_{test} \gets \text{StratifiedSplit}(\mathbf{X}, \mathbf{y}, 0.2)$
+
+                \State \Comment{Latih Model}
+                \State $Pipeline \gets \Call{GetVotingPipeline}{task, E}$
+                \State $Pipeline.\text{fit}(\mathbf{X}_{train}, \mathbf{y}_{train})$
+
+                \State \Comment{Prediksi dan Evaluasi}
+                \State $\mathbf{y}_{pred} \gets Pipeline.\text{predict}(\mathbf{X}_{test})$
+                \State $Metrics \gets \text{CalculateMetrics}(\mathbf{y}_{test}, \mathbf{y}_{pred})$
+                
+                \State \textbf{Output} $Metrics$
+            \EndFor
+        \EndProcedure
+    \end{algorithmic}
+        \caption{Alur kerja klasifikasi menggunakan ensemble Soft Voting.} 
+    \label{lst:alg_classifierg}
+\end{listing}
