@@ -22,6 +22,8 @@ Tabel \ref{tab:dataset_distribution} menunjukkan distribusi kelas pada ketiga tu
 
 \begin{table}[h]
     \centering
+    \caption{Distribusi Kelas pada Dataset ISCXVPN2016 \citep{park2024fast}}
+    \label{tab:dataset_distribution}
     \setlength{\tabcolsep}{6pt} % mengurangi jarak antar kolom
     \renewcommand{\arraystretch}{1.2} % sedikit longgar untuk keterbacaan
     \begin{tabularx}{\linewidth}{lX}
@@ -33,8 +35,6 @@ Tabel \ref{tab:dataset_distribution} menunjukkan distribusi kelas pada ketiga tu
         Aplikasi (16 kelas) & Skype, ICQ, Hangout, Facebook, Email, Gmail, FTP, SCP, SFTP, Netflix, Spotify, Vimeo, YouTube, AIM Chat, VOIPBuster, BitTorrent \\
         \bottomrule
     \end{tabularx}
-    \caption{Distribusi Kelas pada Dataset ISCXVPN2016 \citep{park2024fast}}
-    \label{tab:dataset_distribution}
 \end{table}
 
 Dengan tiga tingkat klasifikasi ini, dataset ISCXVPN2016 menyediakan metode evaluasi yang komprehensif dan representatif untuk penelitian network traffic classification, terutama dalam konteks trafik terenkripsi yang semakin berkembang.
@@ -171,127 +171,89 @@ Ketiga aturan penyaringan (A, B, dan C) diimplementasikan dalam satu skrip Pytho
 
 Setelah ketiga langkah pra-pemrosesan ini selesai, dataset final yang bersih berisi total \textbf{13.487 \textit{flow}}. Dataset yang telah difilter secara ketat inilah yang kemudian digunakan untuk semua proses ekstraksi fitur dan pelatihan model selanjutnya dalam penelitian ini.
 
-\subsection{Pemilihan \textit{Sample} dari \textit{Flow} yang Telah Di-ekstrak}
+%-----------------------------------------------------------------------------%
+\subsection{Skema Klasifikasi Bertingkat (\textit{Hierarchical Classification}) dan Pemilihan Sampel}
+\label{subsec:skema_klasifikasi}
+%-----------------------------------------------------------------------------%
 
-Setelah proses pra-pemrosesan di bagian \ref{subsec:prapemrosesan} selesai, didapatkan total \textbf{13.487 \textit{flow}} yang bersih. Analisis awal terhadap 13.487 \textit{flow} ini mengungkapkan adanya ketidakseimbangan kelas (\textit{class imbalance}) yang ekstrem pada dataset. Seperti yang ditunjukkan pada Gambar \ref{fig:full_dist_before}, beberapa aplikasi seperti \textit{Skype} memiliki 4.704 sampel, sementara \textit{ICQ} dan \textit{AIM Chat} hanya memiliki kurang dari 50 sampel. Ketidakseimbangan ini dapat menyebabkan model klasifikasi menjadi bias terhadap kelas mayoritas dan memiliki performa buruk pada kelas minoritas.
+Berbeda dengan pendekatan yang memisahkan dataset secara fisik sejak awal ekstraksi, penelitian ini menggunakan pendekatan \textit{Single Source of Truth} berupa satu dataset gabungan utuh (\texttt{HFV\_dataset.csv}). Dataset ini memuat representasi fitur hibrida lengkap $\Omega = (\alpha \oplus \beta \oplus \gamma)$ yang berhasil diekstrak dari proses \textit{merging}. Pendekatan ini dipilih secara terencana untuk mencegah kebocoran data (\textit{data leakage}) dan memastikan konsistensi sampel pada setiap skenario pengujian.
 
-\begin{figure}[H]
+Untuk mengevaluasi kinerja \textit{Hybrid Flow Vector} (HFV) pada berbagai tingkat granularitas, eksperimen dirancang menggunakan metode klasifikasi bertingkat (\textit{hierarchical classification}) yang disimulasikan melalui pemfilteran tingkat perangkat lunak (\textit{software-level subsetting}). Alur klasifikasi dieksekusi melalui tiga skenario pengujian utama:
+
+\begin{enumerate}
+    \item \textbf{Skenario 1: Klasifikasi Biner (Deteksi VPN)} \\
+    Pada tahap awal, model dievaluasi untuk membedakan secara makro apakah suatu arus lalu lintas (\textit{flow}) dibungkus oleh terowongan VPN atau tidak. Tahap ini mengeksploitasi seluruh populasi dataset fitur HFV yang berhasil diekstrak, yaitu sebanyak 12.555 sampel (terdiri dari 9.804 sampel \textit{NonVPN} dan 2.751 sampel \textit{VPN}).
+
+    \item \textbf{Skenario 2: Klasifikasi Kategori (Karakterisasi VPN)} \\
+    Mensimulasikan cara kerja \textit{Intrusion Detection System} (IDS) di lingkungan produksi nyata, data yang diproses pada tahap ini direduksi hanya pada \textit{flow} yang telah diklasifikasikan sebagai lalu lintas VPN. Pemfilteran dilakukan untuk mengisolasi 2.751 sampel VPN tersebut. Model kemudian dilatih untuk mengidentifikasi enam kategori layanan (\textit{VoIP, File Transfer, Chat, Email, Streaming,} dan \textit{P2P}). Visualisasi sebaran kelas untuk skenario ini dapat dilihat pada Gambar \ref{fig:distribusi_kategori}.
+
+\begin{figure}[htbp]
     \centering
-    \captionsetup{font=small}
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/binary_dist.png}
-        \caption{Tugas Biner (13.487 flow)}
-    \end{subfigure}
-
-    \vspace{0.5em}
-
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/category_dist.png}
-        \caption{Tugas Kategori (13.487 flow)}
-    \end{subfigure}
-
-    \vspace{0.5em}
-
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/application_dist.png}
-        \caption{Tugas Aplikasi (13.487 flow)}
-    \end{subfigure}
-
-    \caption{Distribusi dataset penuh (13.487 flow) sebelum kurasi. Terlihat jelas adanya ketidakseimbangan kelas yang signifikan.}
-    \label{fig:full_dist_before}
+    \includegraphics[width=0.85\textwidth]{assets/pics/distribusi_kategori.png} % Sesuaikan path folder gambar Anda
+    \caption{Distribusi jumlah sampel untuk setiap kategori layanan VPN dan NonVPN pada dataset HFV pasca-integrasi.}
+    \label{fig:distribusi_kategori}
 \end{figure}
 
-Oleh karena itu, dilakukan langkah kurasi dataset untuk menciptakan dataset yang lebih seimbang untuk eksperimen. Dataset yang dikurasi ini (selanjutnya disebut Dataset v2) dirancang untuk memenuhi dua batasan utama:
-\begin{enumerate}
-    \item Untuk kesederhanaan, dataset akan berisi 6 kelas aplikasi yang paling representatif.
-    \item Untuk menjaga komparabilitas dengan penelitian lain \citep{park2024fast}, dataset harus mencakup \textit{semua} 6 kelas kategori (Chat, Email, File Transfer, P2P, Streaming, VoIP).
+\begin{table}[htbp]
+    \centering
+    \caption{Distribusi Sampel \textit{Flows} PCAP Awal (\textit{Pre-Merge})}
+    \label{tab:distribusi_premerge}
+    \captionsetup{font=small}
+    \setlength{\tabcolsep}{2.5pt}
+    \renewcommand{\arraystretch}{1.05}
+    \fontsize{11pt}{13pt}\selectfont
+    \resizebox{0.68\textwidth}{!}{%
+    \begin{tabular}{@{}llrrr@{}}
+        \toprule
+        \textbf{No} & \textbf{Aplikasi} & \textbf{VPN} & \textbf{NonVPN} & \textbf{Total} \\
+        \midrule
+        1 & Skype & 1.246 & 3.458 & 4.704 \\
+        2 & Email & 137 & 1.764 & 1.901 \\
+        3 & SCP & 0 & 1.741 & 1.741 \\
+        4 & VOIPBuster & 53 & 1.143 & 1.196 \\
+        5 & FTP & 101 & 749 & 850 \\
+        6 & Facebook & 247 & 506 & 753 \\
+        7 & Hangout & 325 & 393 & 718 \\
+        8 & YouTube & 157 & 222 & 379 \\
+        9 & BitTorrent & 363 & 0 & 363 \\
+        10 & Vimeo & 44 & 224 & 268 \\
+        11 & Spotify & 91 & 90 & 181 \\
+        12 & Netflix & 63 & 102 & 165 \\
+        13 & SFTP & 13 & 95 & 108 \\
+        14 & Gmail & 0 & 70 & 70 \\
+        15 & AIM Chat & 14 & 34 & 48 \\
+        16 & ICQ & 20 & 22 & 42 \\
+        \midrule
+        \multicolumn{2}{r}{\textbf{Total Keseluruhan}} & \textbf{2.874} & \textbf{10.613} & \textbf{13.487} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+    \item \textbf{Skenario 3: Klasifikasi Aplikasi Spesifik di Dalam VPN} \\
+    Tugas dengan tingkat kesulitan tertinggi ini menargetkan identifikasi aplikasi spesifik (misalnya Skype vs Hangout) di dalam terowongan terenkripsi. Pada tahap ini, seleksi sampel (\textit{sample selection}) secara ketat diberlakukan berdasarkan analisis distribusi kelas untuk menghindari \textit{class imbalance} yang ekstrem.
 \end{enumerate}
 
-Tantangannya adalah, jika hanya mengambil 6 aplikasi dengan jumlah sampel terbesar (misalnya \textit{Skype}, \textit{Email}, \textit{SCP}, \textit{VOIPBuster}, \textit{FTP}, \textit{Facebook}), batasan kedua tidak terpenuhi karena tidak ada perwakilan untuk kategori \textit{Streaming} dan \textit{P2P}.
+Sebelum proses ekstraksi dan integrasi fitur HFV dilakukan, raw data berupa PCAP \textit{flows} (\textit{pre-merge}) memiliki total 13.487 sampel. Rincian distribusi awal dari data \textit{pre-merge} ini disajikan pada Tabel \ref{tab:distribusi_premerge}.
 
-Solusinya adalah melakukan proses \textit{pick-and-choose} dengan memilih 6 aplikasi yang dapat menjadi ``perwakilan'' dengan jumlah sampel terbesar untuk \textit{setiap} kategori. Aplikasi yang terpilih adalah:
+Berdasarkan hasil analisis pasca-integrasi ($\alpha \oplus \beta \oplus \gamma$), terjadi penyisihan data alamiah pada \textit{flow} jaringan yang tidak memenuhi prasyarat kelengkapan tiga pilar fitur. Total sampel menyusut dari 13.487 \textit{raw} PCAP menjadi 12.555 baris observasi fitur yang utuh. Penjelasan mendetail mengenai mekanisme penggabungan fitur ini dan justifikasi teknis terkait faktor penyebab penyusutan data (seperti jumlah paket dari sebuah \textit{flow} yang terlalu sedikit untuk menghasilkan komponen \textit{alpha}) akan dibahas pada Sub-bab 3.3.5.2 mengenai Konsistensi Dataset dan Integritas Sampel.
+
+Penyusutan dan distribusi natural dari dataset ISCX 2016 ini mengungkap adanya ketidakseimbangan kelas (\textit{class imbalance}) yang ekstrem pada sub-populasi VPN:
 \begin{itemize}
-    \item \textbf{Skype} (4.704 flow): Perwakilan terbesar untuk Chat, VoIP, dan File Transfer.
-    \item \textbf{Email} (1.901 flow): Perwakilan terbesar untuk Email.
-    \item \textbf{SCP} (1.741 flow): Perwakilan terbesar kedua untuk File Transfer.
-    \item \textbf{VOIPBuster} (1.196 flow): Perwakilan terbesar untuk VoIP-saja.
-    \item \textbf{YouTube} (379 flow): Perwakilan terbesar untuk Streaming.
-    \item \textbf{BitTorrent} (363 flow): Satu-satunya perwakilan untuk P2P.
+    \item Terdapat aplikasi yang sama sekali tidak memiliki sampel VPN (\textit{zero-instance}) di dalam dataset, seperti \texttt{SCP} dan \texttt{Gmail}.
+    \item Terdapat kelas minoritas dengan jumlah sampel VPN yang sangat tidak memadai untuk pelatihan model \textit{machine learning} yang \textit{robust} (misalnya \texttt{SFTP} dengan 11 sampel, \texttt{AIM Chat} dengan 14 sampel, \texttt{ICQ} dengan 20 sampel, dan \texttt{Vimeo} dengan 37 sampel).
 \end{itemize}
 
-Proses \textit{pick-and-choose} ini menghasilkan Dataset v2 dengan total \textbf{10.284 \textit{flow}}. Proses penyaringan ini diimplementasikan dengan skrip Python yang membaca 13.487 \textit{flow} dari direktori sumber dan hanya menyalin \textit{flow} yang termasuk dalam 6 aplikasi target ke direktori tujuan.
+Memaksakan inklusi kelas dengan sampel mikroskopis tersebut akan memicu fenomena \textit{overfitting} atau menyebabkan algoritma klasifikasi sepenuhnya mengabaikan kelas minoritas selama fase konvergensi. Oleh karena itu, penelitian ini memberlakukan ambang batas (\textit{threshold}) kelayakan secara empiris, di mana hanya aplikasi target dengan rekam data VPN lebih dari 100 sampel yang dipertahankan untuk Skenario 3. 
 
-Setelah proses kurasi ini selesai, distribusi kelas pada Dataset v2 (10.284 \textit{flow}) menjadi lebih seimbang, meskipun masih menunjukkan ketidakseimbangan yang wajar, seperti terlihat pada Gambar \ref{fig:v2_dist_after}. Dataset v2 (VPN/Non-VPN) inilah yang digunakan sebagai \textit{full dataset}, selain \textit{VPN Only} dataset yang akan dijelaskan di bagian berikutnya.
-
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \captionsetup{font=small}
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/full-binary_dist.png}
-        \caption{Tugas Biner (v2)}
-    \end{subfigure}
-
-    \vspace{0.5em}
-
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/full-category_dist.png}
-        \caption{Tugas Kategori (v2)}
-    \end{subfigure}
-
-    \vspace{0.5em}
-
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/full-application_dist.png}
-        \caption{Tugas Aplikasi (v2)}
-    \end{subfigure}
-
-    \caption{Distribusi Dataset v2 (10.284 flow) setelah proses kurasi.}
-    \label{fig:v2_dist_after}
+    \includegraphics[width=0.95\textwidth]{assets/pics/distribusi_aplikasi.png} % Sesuaikan path folder gambar Anda
+    \caption{Distribusi sampel aplikasi spesifik. Garis putus-putus menunjukkan ambang batas minimum (\textgreater 100 sampel) VPN yang diperlukan untuk mencegah \textit{overfitting} pada pelatihan model klasifikasi.}
+    \label{fig:distribusi_aplikasi}
 \end{figure}
 
-\subsection{Kurasi Dataset Khusus VPN (VPN-Only)}
-Selain Dataset v2 (10.284 \textit{flow}) yang digunakan untuk eksperimen ‘penuh’ (VPN/Non-VPN), penelitian ini juga bertujuan untuk mengevaluasi performa model pada skenario yang lebih spesifik: mengklasifikasikan trafik yang sudah diketahui terenkripsi (VPN).
-
-Tantangan utamanya adalah, jika kita sekadar memfilter Dataset v2 (10.284 \textit{flow}) untuk sampel VPN-nya, dataset yang dihasilkan menjadi tidak representatif dan trivial. Sebagai contoh, aplikasi SCP (1.741 \textit{flow}) akan hilang seluruhnya karena tidak memiliki sampel VPN. Lebih kritis lagi, kategori P2P hanya akan diwakili oleh BitTorrent, dan Email hanya oleh Email. Ini berarti model tidak akan belajar membedakan ‘Chat’ dari ‘P2P’, melainkan hanya membedakan ‘Skype’ dari ‘BitTorrent’, yang merupakan tugas yang jauh lebih mudah.
-
-Untuk mengatasi ini, sebuah dataset ‘Khusus VPN’ yang baru dikurasi langsung dari 13.487 \textit{flow} bersih. Tujuannya adalah untuk menciptakan dataset yang tetap menantang dengan tetap mencakup semua 6 kategori. Dataset ini memiliki batasan yang tidak terhindarkan: kategori P2P dan Email masing-masing hanya akan diwakili oleh BitTorrent (363 \textit{flow} VPN) dan Email (137 \textit{flow} VPN). Oleh karena itu, tantangan sebenarnya dari dataset ini adalah kemampuan model untuk membedakan kategori yang saling tumpang tindih (Chat, VoIP, File Transfer, Streaming) yang diwakili oleh beberapa aplikasi.
-
-Untuk memaksimalkan tumpang tindih ini, 9 aplikasi dipilih:
-\begin{itemize}
-    \item \textbf{Chat/VoIP/File Transfer (tumpang tindih):} Skype (1246 \textit{flow}), Hangout (325 \textit{flow}), Facebook (247 \textit{flow})
-    \item \textbf{File transfer tambahan:} FTP (101 \textit{flow})
-    \item \textbf{Streaming (variasi):} YouTube (157 \textit{flow}), Spotify (91 \textit{flow}), Netflix (63 \textit{flow})
-    \item \textbf{Perwakilan kategori wajib:} BitTorrent (363 \textit{flow}), Email (137 \textit{flow})
-\end{itemize}
-
-Proses penyaringan ini menghasilkan dataset final ‘Khusus VPN’ yang terdiri dari 2.730 \textit{flow} VPN. Distribusi kelas untuk dataset ini ditunjukkan pada Gambar \ref{fig:vpn_only_dist}.
-
-\begin{figure}[H]
-    \centering
-    \captionsetup{font=small}
-\begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/vpnonly-category_dist.png}
-        \caption{Tugas Kategori (Khusus VPN)}
-    \end{subfigure}
-
-    \vspace{0.5em}
-
-    \begin{subfigure}[b]{0.7\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{assets/pics/vpnonly-application_dist.png}
-        \caption{Tugas Aplikasi (Khusus VPN)}
-    \end{subfigure}
-
-    \caption{Distribusi Dataset 'Khusus VPN' (2.730 flow) setelah kurasi dinamis. Tugas Biner secara alami tidak lagi disertakan dalam konteks ini).}
-    \label{fig:vpn_only_dist}
-\end{figure}
+Sebagaimana diilustrasikan pada Gambar \ref{fig:distribusi_aplikasi}, pendekatan selektif ini pada akhirnya memfilter dan menyisakan aplikasi dominan seperti \texttt{Skype}, \texttt{BitTorrent}, \texttt{Hangout}, \texttt{Facebook}, dan \texttt{YouTube} (serta beberapa aplikasi lain yang melewati \textit{threshold}) sebagai target klasifikasi \textit{fine-grained}. Keputusan pemfilteran ini krusial untuk memastikan bahwa evaluasi metrik kinerja kerangka kerja HFV tetap valid secara statistik dan tidak terdistorsi oleh anomali keterwakilan data.
 
 \section{Perancangan dan Implementasi \textit{Hybrid Flow Vector} (HFV)}
 

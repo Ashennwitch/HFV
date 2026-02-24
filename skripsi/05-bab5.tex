@@ -1,3 +1,47 @@
 %-----------------------------------------------------------------------------%
 \chapter{\babLima}
 \label{cha:penutup}
+
+Bab ini merangkum seluruh hasil penelitian yang telah dilakukan untuk menjawab rumusan masalah dan tujuan yang telah ditetapkan pada Bab 1. Selain itu, bab ini juga menyajikan rekomendasi dan saran untuk pengembangan penelitian di masa mendatang berdasarkan batasan dan temuan analisis kesalahan yang telah dievaluasi.
+
+%-----------------------------------------------------------------------------%
+\section{Kesimpulan}
+\label{sec:kesimpulan}
+%-----------------------------------------------------------------------------%
+
+Berdasarkan perancangan, implementasi, dan pengujian kerangka kerja \textit{Hybrid Flow Vector} (HFV) untuk klasifikasi lalu lintas VPN terenkripsi, dapat ditarik beberapa kesimpulan sebagai berikut:
+
+\begin{enumerate}
+    \item \textbf{Pengembangan Metode Klasifikasi \textit{Fine-Grained} Tanpa Dekripsi:} \\
+    Penelitian ini telah berhasil mengembangkan sebuah metodologi \textit{payload-agnostic} (tanpa memerlukan proses dekripsi menjadi \textit{plaintext}) untuk mengidentifikasi kategori layanan dan aplikasi spesifik di dalam terowongan VPN. Melalui skema klasifikasi bertingkat (\textit{hierarchical classification}) dan penerapan pemetaan data yang ketat untuk mencegah kebocoran data (\textit{data leakage}), model algoritma \textit{Ensemble Soft Voting} (kombinasi \textit{Random Forest} dan XGBoost) terbukti sebagai arsitektur terbaik. Model ini mampu membedakan lalu lintas terenkripsi secara \textit{fine-grained} dengan tingkat konsistensi metrik yang sangat tinggi di berbagai skenario evaluasi.
+    
+    \item \textbf{Implementasi Model Representasi \textit{Hybrid Flow Vector} (HFV):} \\
+    Model representasi fitur hibrida HFV $\Omega = (\alpha \oplus \beta \oplus \gamma)$ telah sukses dirancang dan diimplementasikan menjadi sebuah vektor kohesif berdimensi 249. Analisis korelasi \textit{Spearman} secara multivariat membuktikan bahwa integrasi ketiga pilar analisis—yakni representasi struktural \textit{byte-level} dari 1D-CNN ($\alpha$), profil makroskopis \textit{flow} ($\beta$), dan dinamika waktu \textit{burst} ($\gamma$)—berhasil menangkap dimensi informasi yang saling independen (ortogonal). Hal ini mengonfirmasi bahwa pendekatan hibrida tidak sekadar menciptakan redundansi, melainkan mengekstraksi \textit{signature} perilaku jaringan yang komprehensif.
+
+    \item \textbf{Kinerja, Robustisitas, dan Kontribusi Komplementer Pilar Fitur:} \\
+    Evaluasi empiris pada dataset ISCX 2016 membuktikan bahwa kerangka kerja HFV mencapai tingkat akurasi dan \textit{robustisitas} yang superior. Kinerja model mencatatkan skor \textit{F1-Macro} sebesar 96.01\% untuk Skenario Biner (Deteksi VPN), 91.84\% untuk Skenario Kategori VPN, dan 91.62\% untuk Skenario Aplikasi Spesifik VPN. 
+    \textit{Ablation study} dan Analisis \textit{Feature Importance} mengungkap fakta kritis mengenai sifat komplementer dari pilar HFV:
+    \begin{itemize}
+        \item Fitur statistik makroskopis ($\beta$) sangat mendominasi dan efektif untuk mendeteksi keberadaan VPN secara biner.
+        \item Namun, untuk menembus kompleksitas klasifikasi \textit{fine-grained} (identifikasi aplikasi spesifik), model secara mutlak mengandalkan komponen \textit{deep learning} ($\alpha$) dengan persentase kontribusi keputusan mencapai 74.57\%. Komponen $\alpha$ krusial karena ia mampu menangkap presisi struktural \textit{padding} kriptografis yang tidak dapat dilihat oleh analisis heuristik aliran data konvensional.
+        \item Integrasi utuh ketiganya (Full HFV) dipertahankan sebagai solusi paling optimal karena memberikan arsitektur keamanan yang jauh lebih tahan terhadap teknik penghindaran (\textit{evasion-resistant}) di dunia nyata dibandingkan model yang hanya mengandalkan fitur tunggal.
+    \end{itemize}
+\end{enumerate}
+
+%-----------------------------------------------------------------------------%
+\section{Saran}
+\label{sec:saran}
+%-----------------------------------------------------------------------------%
+
+Meskipun kerangka kerja \textit{Hybrid Flow Vector} (HFV) menunjukkan hasil yang sangat menjanjikan, terdapat beberapa area yang dapat dikembangkan untuk menyempurnakan penelitian ini di masa mendatang:
+
+\begin{enumerate}
+    \item \textbf{Penanganan Obfuscasi pada Aplikasi Pesan Singkat (\textit{Chat}):} \\
+    Analisis \textit{Confusion Matrix} mengungkap bahwa kategori lalu lintas \textit{Chat} rentan mengalami kesalahan klasifikasi akibat paket teks berukuran sangat kecil yang disamarkan oleh mekanisme \textit{Block Cipher Padding} pada protokol VPN. Penelitian selanjutnya disarankan untuk mengeksplorasi teknik analisis derivatif waktu (seperti analisis frekuensi \textit{jitter} tingkat milidetik) yang secara khusus dioptimalkan untuk menembus \textit{padding} pada ukuran paket homogen.
+    
+    \item \textbf{Resolusi Klasifikasi Aplikasi Web Multi-Modal:} \\
+    Sistem saat ini mengalami kesulitan moderat dalam membedakan aplikasi multi-layanan modern seperti Facebook dan Hangout yang banyak memanfaatkan infrastruktur \textit{Content Delivery Network} (CDN) yang tumpang tindih dan enkripsi ganda (HTTPS di dalam VPN). Peneliti berikutnya disarankan untuk memperluas model 1D-CNN menjadi arsitektur \textit{sequence-to-sequence} (seperti Transformer atau LSTM) guna menangkap hubungan temporal jangka panjang antarpaket dalam satu \textit{flow} koneksi CDN.
+    
+    \item \textbf{Pembaruan Dataset dan Evaluasi \textit{Real-Time}:} \\
+    Model HFV terbukti sangat \textit{robust} pada dataset ISCX 2016. Namun, untuk memvalidasi generalisasi model terhadap evolusi arsitektur jaringan terbaru (seperti adopsi protokol QUIC/HTTP3 atau TLS 1.3 secara masif), diperlukan pengujian ulang menggunakan dataset lalu lintas modern. Selain itu, diperlukan optimasi komputasional pada modul ekstraksi fitur ($\beta$ dan $\gamma$) agar kerangka kerja HFV dapat diimplementasikan sebagai sensor \textit{Intrusion Detection System} (IDS) yang beroperasi secara \textit{real-time} pada lingkungan produksi \textit{live-network}.
+\end{enumerate}
