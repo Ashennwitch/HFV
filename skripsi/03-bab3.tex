@@ -539,45 +539,6 @@ Arsitektur lengkap dari pipeline klasifikasi ini diilustrasikan pada Gambar \ref
     \label{fig:classification_pipeline}
 \end{figure}
 
-\subsection{Konfigurasi Model dan Optimasi Hiperparameter}
-\label{subsec:model_config}
-
-Kinerja model \textit{ensemble} sangat bergantung pada pemilihan hiperparameter yang optimal. Mengingat ruang pencarian parameter yang luas untuk Random Forest dan XGBoost, penelitian ini menerapkan strategi pencarian acak (\textit{Randomized Search}) yang dipadukan dengan validasi silang (\textit{Cross-Validation}).
-
-\subsubsection{Proses Penyetelan Hiperparameter}
-Tujuan dari proses ini adalah menemukan kombinasi parameter $\theta^*$ yang meminimalkan fungsi kerugian atau memaksimalkan metrik evaluasi (F1-Score) pada data validasi. Secara matematis, proses optimasi ini didefinisikan pada Persamaan \ref{eq:hyperparam_opt}.
-
-\begin{myequation}{Optimasi Hiperparameter}
-    \label{eq:hyperparam_opt}
-    \theta^* = \arg \max_{\theta \in \Theta} \left( \frac{1}{K} \sum_{k=1}^{K} \text{Metric}(f(X_{val}^{(k)}; \theta), y_{val}^{(k)}) \right)
-\end{myequation}
-
-Dimana $\Theta$ adalah ruang pencarian parameter, $K$ adalah jumlah lipatan validasi (5-fold CV), dan $f$ adalah model klasifikasi.
-
-Eksperimen dilakukan secara terpisah untuk setiap skenario tugas (Biner, Kategori, Aplikasi) guna menangkap karakteristik unik masing-masing distribusi kelas. Hasil parameter terbaik (\textit{Best Parameters}) yang diperoleh dari proses ini kemudian ditetapkan (\textit{hardcoded}) sebagai konfigurasi final model, sebagaimana dirangkum dalam Tabel \ref{tab:best_params}.
-
-\begin{table}[H]
-    \centering
-    \caption{Konfigurasi Parameter Terbaik untuk Ensemble Soft Voting (Mode FULL)}
-    \label{tab:best_params}
-    \resizebox{\textwidth}{!}{%
-    \begin{tabular}{@{}llll@{}}
-        \toprule
-        \textbf{Tugas Klasifikasi} & \textbf{Model} & \textbf{Parameter Kunci} & \textbf{Peran dalam Ensemble} \\ 
-        \midrule
-        \multirow{2}{*}{\textbf{Binary} (2 Kelas)} & Random Forest & $N_{est}=300$, $Depth=20$, $Crit=Entropy$ & \textit{Base Learner} 1 \\
-         & XGBoost & $N_{est}=200$, $LR=0.1$, $Depth=6$ & \textit{Base Learner} 2 \\
-        \midrule
-        \multirow{2}{*}{\textbf{Category} (6 Kelas)} & XGBoost & $N_{est}=100$, $LR=0.2$, $Depth=10$ & \textit{Base Learner} 1 \\
-         & Random Forest & $N_{est}=200$, $Depth=20$, $Crit=Gini$ & \textit{Base Learner} 2 \\
-        \midrule
-        \multirow{2}{*}{\textbf{Application} (6 Kelas)} & Random Forest & $N_{est}=100$, $Depth=None$, $Crit=Gini$ & \textit{Base Learner} 1 \\
-         & XGBoost & $N_{est}=200$, $LR=0.1$, $Depth=6$ & \textit{Base Learner} 2 \\
-        \bottomrule
-    \end{tabular}%
-    }
-\end{table}
-
 \subsection{Algoritma Eksekusi Klasifikasi}
 \label{subsec:algo_klasifikasi}
 

@@ -144,43 +144,59 @@ Oleh karena itu, kerangka kerja \textbf{\textit{Ensemble Soft Voting}} ditetapka
 \label{sec:optimasi_model}
 %-----------------------------------------------------------------------------%
 
-Setelah menetapkan \textit{Ensemble Soft Voting} (kombinasi \textit{Random Forest} dan XGBoost) sebagai model utama, tahap selanjutnya adalah melakukan optimasi hiperparameter (\textit{hyperparameter tuning}). Proses ini bertujuan untuk menemukan kombinasi parameter internal algoritma yang paling optimal dalam memetakan pola \textit{Hybrid Flow Vector} (HFV), sekaligus meminimalkan risiko \textit{overfitting}.
+Setelah menetapkan \textit{Ensemble Soft Voting} (gabungan \textit{Random Forest} dan XGBoost) sebagai model utama, tahap selanjutnya adalah melakukan optimasi hiperparameter (\textit{hyperparameter tuning}). Proses ini bertujuan untuk menemukan kombinasi konfigurasi parameter internal algoritma yang mampu memaksimalkan kinerja prediktif model, sekaligus mencegah terjadinya \textit{overfitting}.
 
-Mengingat kompleksitas dari masing-masing tugas klasifikasi berbeda-beda, proses optimasi dieksekusi secara independen untuk ketiga skenario pengujian. Optimasi dilakukan menggunakan metode \textit{Randomized Search Cross-Validation} (\texttt{RandomizedSearchCV}) dengan validasi silang 3-lipatan (\textit{3-fold CV}). Untuk menjamin agar tidak terjadi kebocoran statistik (\textit{statistics data leakage}) selama proses validasi silang, optimasi dienkapsulasi menggunakan mekanisme \textit{Pipeline} \textit{Scikit-Learn}, di mana proses standardisasi data (\textit{StandardScaler}) dikalibrasi ulang pada setiap iterasi lipatan pelatihan.
-
-Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi untuk algoritma dasar meliputi parameter pertumbuhan pohon dan regularisasi, seperti \texttt{n\_estimators}, \texttt{max\_depth}, \texttt{min\_samples\_split}, \texttt{criterion} (untuk \textit{Random Forest}), serta \texttt{learning\_rate} dan \texttt{subsample} (untuk XGBoost).
-
-Untuk memvalidasi efektivitas dari proses pencarian parameter ini, model \textit{Ensemble Soft Voting} dilatih ulang menggunakan parameter terbaik yang ditemukan untuk masing-masing skenario (\textit{Tuned Model}), kemudian kinerjanya dibandingkan secara langsung dengan model yang menggunakan parameter bawaan (\textit{Default/Base Model}). Evaluasi perbandingan ini diukur menggunakan metrik \textit{F1-Macro} pada himpunan data uji (\textit{test set}) terisolasi. Hasil perbandingan kinerja tersebut dirangkum pada Tabel \ref{tab:hasil_tuning_skenario}.
+Proses optimasi dilakukan menggunakan teknik \textit{Randomized Search Cross-Validation} (\texttt{RandomizedSearchCV}) dengan metode validasi silang 3-lipatan (\textit{3-fold CV}). Pencarian parameter difokuskan pada Skenario 1 (Deteksi VPN) secara komprehensif, dengan asumsi bahwa parameter yang mendeteksi pola representasi HFV secara global akan berlaku optimal untuk Skenario yang lebih spesifik. Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta konfigurasi terbaik yang berhasil diidentifikasi untuk masing-masing algoritma dasar disajikan pada Tabel \ref{tab:hyperparameter_grid}.
 
 \begin{table}[htbp]
     \centering
-    \caption{Perbandingan Kinerja F1-Macro Model \textit{Default} vs \textit{Tuned} pada Tiga Skenario}
-    \label{tab:hasil_tuning_skenario}
-    \resizebox{0.9\textwidth}{!}{%
-    \begin{tabular}{l ccc}
+    \caption{Ruang Pencarian Hiperparameter dan Parameter Terbaik yang Ditemukan}
+    \label{tab:hyperparameter_grid}
+    \resizebox{0.95\textwidth}{!}{%
+    \begin{tabular}{lllc}
         \toprule
-        \textbf{Skenario Pengujian} & \textbf{\textit{Default/Base} (\%)} & \textbf{\textit{Tuned/Optimized} (\%)} & \textbf{Selisih Kinerja (\%)} \\
+        \textbf{Model} & \textbf{Hiperparameter} & \textbf{Ruang Pencarian (\textit{Search Space})} & \textbf{Parameter Terbaik} \\
         \midrule
-        Skenario 1 (Deteksi VPN Biner) & 95.95 & 95.92 & -0.03 \\
-        Skenario 2 (Kategori VPN) & 91.07 & 91.85 & +0.78 \\
-        Skenario 3 (Aplikasi Spesifik) & 91.32 & 91.11 & -0.21 \\
+        \multirow{5}{*}{\textit{Random Forest}} 
+        & \texttt{n\_estimators} & [100, 200, 300] & 100 \\
+        & \texttt{max\_depth} & [None, 10, 20, 30] & None \\
+        & \texttt{min\_samples\_split} & [2, 5, 10] & 5 \\
+        & \texttt{min\_samples\_leaf} & [1, 2, 4] & 1 \\
+        & \texttt{criterion} & ['gini', 'entropy'] & 'entropy' \\
+        \midrule
+        \multirow{4}{*}{XGBoost} 
+        & \texttt{n\_estimators} & [100, 200, 300] & 200 \\
+        & \texttt{max\_depth} & [3, 6, 10] & 6 \\
+        & \texttt{learning\_rate} & [0.01, 0.1, 0.2] & 0.2 \\
+        & \texttt{subsample} & [0.8, 1.0] & 0.8 \\
         \bottomrule
     \end{tabular}%
     }
 \end{table}
 
-Berdasarkan Tabel \ref{tab:hasil_tuning_skenario}, ditemukan fenomena empiris yang sangat menarik. Implementasi parameter hasil optimasi (\textit{tuning}) tidak memberikan peningkatan performa yang revolusioner. Pada Skenario 2 (Kategori VPN), model berhasil memperoleh sedikit peningkatan marjinal sebesar 0.78\%. Namun, pada Skenario 1 dan Skenario 3, modifikasi hiperparameter justru memicu penurunan kinerja yang sangat kecil (masing-masing sebesar -0.03\% dan -0.21\%).
+Untuk memvalidasi efektivitas dari parameter hasil \textit{tuning} tersebut, model \textit{Ensemble Soft Voting} dilatih ulang menggunakan parameter terbaik (\textit{Tuned Model}) dan kinerjanya dibandingkan secara langsung dengan model menggunakan parameter bawaan pustaka (\textit{Default Model}). Evaluasi perbandingan tersebut diukur menggunakan metrik \textit{F1-Macro} pada himpunan data uji (\textit{test set}) yang terisolasi.
 
-\subsection{Analisis Fenomena Kinerja Hiperparameter}
+\begin{table}[htbp]
+    \centering
+    \caption{Perbandingan Kinerja Model Sebelum dan Sesudah \textit{Tuning}}
+    \label{tab:hasil_tuning}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Konfigurasi Model} & \textbf{Skor F1-Macro} \\
+        \midrule
+        \textit{Soft Voting} (Parameter Default) & 96.01\% \\
+        \textit{Soft Voting} (Parameter Optimals/Tuned) & 95.94\% \\
+        \midrule
+        \textbf{Selisih Kinerja} & \textbf{-0.07\%} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
-Dalam konteks \textit{machine learning}, selisih kinerja di bawah 1\% secara statistik dianggap tidak signifikan (\textit{negligible}). Fenomena stagnasi performa pasca-optimasi ini memberikan justifikasi akademis yang sangat krusial terkait kualitas data eksperimen:
+Berdasarkan hasil komparasi pada Tabel \ref{tab:hasil_tuning}, ditemukan fenomena yang menarik di mana implementasi parameter hasil optimasi justru menghasilkan penurunan kinerja yang sangat marjinal sebesar 0.07\%. Secara statistik, selisih ini dianggap tidak signifikan (\textit{negligible}). 
 
-\begin{enumerate}
-    \item \textbf{Robustisitas Algoritma Bawaan:} Arsitektur dasar dari \textit{Random Forest} (berbasis \textit{Bagging}) dan XGBoost (berbasis \textit{Boosting}) sudah sangat tangguh (\textit{robust}) dalam menangani himpunan data berdimensi tinggi. Konfigurasi bawaan (\textit{default}) dari kedua pustaka tersebut telah dikalibrasi oleh pengembangnya untuk mencapai titik generalisasi yang seimbang secara \textit{out-of-the-box}.
-    \item \textbf{Daya Diskriminasi Vektor HFV:} Tidak adanya lonjakan performa yang drastis membuktikan bahwa arsitektur \textit{Hybrid Flow Vector} (HFV) yang diajukan sudah memiliki kualitas diskriminatif yang sangat tinggi. Fitur representasi $\alpha, \beta$, dan $\gamma$ melakukan "tugas berat" (\textit{heavy lifting}) dengan memisahkan topologi kelas secara jelas di ruang vektor, sehingga algoritma klasifikasi tidak memerlukan rekayasa parameter yang agresif untuk menemukan batas keputusan (\textit{decision boundary}) yang presisi.
-\end{enumerate}
+Temuan ini memberikan justifikasi empiris yang mengindikasikan dua hal penting. Pertama, arsitektur dasar algoritma \textit{Random Forest} dan XGBoost sudah sangat kuat dan stabil dalam menangani himpunan data berdimensi tinggi. Kedua, representasi fitur \textit{Hybrid Flow Vector} (HFV) yang diajukan dalam penelitian ini terbukti memiliki kualitas diskriminatif yang sangat tinggi (mampu memisahkan kelas dengan jelas). Ketajaman fitur penyusun HFV melakukan "tugas berat" (\textit{heavy lifting}) dalam proses klasifikasi, sehingga algoritma tidak memerlukan rekayasa parameter yang agresif untuk mencapai metrik evaluasi di atas 96\%.
 
-Berdasarkan temuan ini, dan sejalan dengan prinsip \textit{Occam's Razor}—yang mengutamakan model dengan kompleksitas terendah apabila kinerja yang dihasilkan setara—penelitian ini menetapkan untuk \textbf{mempertahankan penggunaan Parameter \textit{Default}} pada model \textit{Ensemble Soft Voting}. Keputusan ini diambil untuk meminimalkan risiko \textit{overfitting} pada parameter spesifik serta menjamin tingkat generalisasi model yang lebih baik pada data yang belum pernah dilihat di masa mendatang. Oleh karena itu, seluruh eksperimen lanjutan pada sub-bab berikutnya akan dieksekusi secara konsisten menggunakan model dengan konfigurasi bawaan.
+Sesuai dengan prinsip \textit{Occam's Razor} dalam pemodelan \textit{machine learning}—yang mengutamakan model paling sederhana jika kinerja yang dihasilkan setara—penelitian ini memutuskan untuk \textbf{mempertahankan penggunaan Parameter Default} pada model \textit{Ensemble Soft Voting}. Model bawaan ini dinilai memiliki tingkat generalisasi yang sedikit lebih baik pada data yang belum pernah dilihat (\textit{unseen data}). Oleh karena itu, seluruh eksperimen lanjutan pada sub-bab berikutnya, termasuk \textit{Ablation Study}, akan dieksekusi menggunakan konfigurasi tersebut.
 
 %-----------------------------------------------------------------------------%
 \section{\textit{Ablation Study} Komponen Fitur HFV}
@@ -225,7 +241,7 @@ Hasil pengujian komprehensif yang mencakup metrik \textit{F1-Macro, Precision}, 
     \label{fig:ablation_study_chart}
 \end{figure}
 
-\subsection{Analisis Studi Ablasi}
+\subsection{Analisis Kritis Temuan Eksperimental}
 
 Berdasarkan data pada Tabel \ref{tab:ablation_study} dan visualisasi pada Gambar \ref{fig:ablation_study_chart}, terdapat beberapa temuan empiris yang mendasari analisis efektivitas kerangka kerja HFV:
 
