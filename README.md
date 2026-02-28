@@ -25,7 +25,7 @@ The Hybrid Flow Vector is composed of three distinct feature sets extracted from
    - **Source:** Extracted using a 1D-Convolutional Neural Network (1D-CNN) processing the raw payload bytes of the first few packets in a flow.
    - **Purpose:** Captures complex, spatial, and hidden patterns within the encrypted payload sequence.
 
-2. **Beta ($\beta$) / Delta ($\delta$) - Flow-Level Statistical Features:**
+2. **Beta ($\beta$) - Flow-Level Statistical Features:**
    - **Dimension:** 39-dim vector.
    - **Source:** Statistical metrics of the entire network flow (e.g., flow duration, total forward/backward packets, byte counts).
    - **Purpose:** Represents the overall macroscopic behavior and volume of the communication.
