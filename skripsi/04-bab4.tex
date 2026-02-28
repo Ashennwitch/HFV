@@ -84,9 +84,7 @@ Untuk menjamin integritas evaluasi, penelitian ini mengimplementasikan pemetaan 
 
 \subsection{Hasil Komparasi dan Analisis Kinerja}
 
-Kinerja masing-masing algoritma dievaluasi berdasarkan empat metrik utama: Akurasi (\textit{Accuracy}), Presisi (\textit{Precision}), \textit{Recall}, dan \textit{F1-Macro}. Penggunaan \textit{F1-Macro} sangat krusial sebagai metrik penentu (\textit{deciding metric}) untuk memastikan bahwa model tidak bias terhadap kelas mayoritas. Hasil pengujian komprehensif pada ketiga skenario granularitas disajikan pada Tabel \ref{tab:komparasi_model}.
-
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Tabel Komparasi Performa Algoritma Klasifikasi (dalam Persen)}
     \label{tab:komparasi_model}
@@ -123,14 +121,6 @@ Kinerja masing-masing algoritma dievaluasi berdasarkan empat metrik utama: Akura
     }
 \end{table}
 
-Berdasarkan Tabel \ref{tab:komparasi_model}, terdapat tren performa yang konsisten di seluruh tingkat granularitas. Model yang berbasis pemetaan jarak (KNN) dan hiperbidang (\textit{hyperplane} SVM) mencatatkan performa yang inferior. Hal ini secara logis dapat diatribusikan pada karakteristik fitur HFV yang memiliki dimensi tinggi dan bersifat heterogen (campuran antara representasi \textit{byte-level} dari \textit{deep learning} dan distribusi statistik diskrit), yang menyulitkan algoritma konvensional untuk menemukan batas keputusan yang optimal.
-
-Sebaliknya, algoritma berbasis pohon (\textit{Random Forest} dan \textit{XGBoost}) menunjukkan dominasi yang absolut. Kemampuan mereka untuk melakukan \textit{feature selection} secara intrinsik pada setiap nodus cabang (\textit{branching}) menjadikannya sangat \textit{robust} terhadap dimensi HFV yang besar. 
-
-Puncak dari evaluasi ini dibuktikan oleh model \textbf{\textit{Ensemble Soft Voting}}. Dengan merata-rata probabilitas kelas dari RF dan XGBoost, model \textit{ensemble} berhasil menyeimbangkan keagresifan \textit{Boosting} dan stabilitas \textit{Bagging}. Model gabungan ini tidak hanya meraih nilai Akurasi tertinggi pada ketiga skenario (97.21\% untuk Biner, 93.81\% untuk Kategori, dan 93.70\% untuk Aplikasi), tetapi juga secara meyakinkan mempertahankan konsistensi metrik \textit{F1-Macro}.
-
-Oleh karena itu, kerangka kerja \textbf{\textit{Ensemble Soft Voting}} ditetapkan sebagai \textbf{Model Utama} yang akan digunakan secara eksklusif untuk seluruh pengujian lanjutan di Sub-bab selanjutnya, khususnya dalam pelaksanaan \textit{ablation study} untuk membedah signifikansi komponen fitur $\alpha, \beta,$ dan $\gamma$.
-
 % Sisipkan visualisasinya di sini
 \begin{figure}[htbp]
     \centering
@@ -139,75 +129,86 @@ Oleh karena itu, kerangka kerja \textbf{\textit{Ensemble Soft Voting}} ditetapka
     \label{fig:komparasi_algoritma}
 \end{figure}
 
+Kinerja masing-masing algoritma dievaluasi berdasarkan empat metrik utama: Akurasi (\textit{Accuracy}), Presisi (\textit{Precision}), \textit{Recall}, dan \textit{F1-Macro}. Penggunaan \textit{F1-Macro} sangat krusial sebagai metrik penentu (\textit{deciding metric}) untuk memastikan bahwa model tidak bias terhadap kelas mayoritas. Hasil pengujian komprehensif pada ketiga skenario granularitas disajikan pada Tabel \ref{tab:komparasi_model}.
+
+Berdasarkan Tabel \ref{tab:komparasi_model}, terdapat tren performa yang konsisten di seluruh tingkat granularitas. Model yang berbasis pemetaan jarak (KNN) dan hiperbidang (\textit{hyperplane} SVM) mencatatkan performa yang inferior. Hal ini secara logis dapat diatribusikan pada karakteristik fitur HFV yang memiliki dimensi tinggi dan bersifat heterogen (campuran antara representasi \textit{byte-level} dari \textit{deep learning} dan distribusi statistik diskrit), yang menyulitkan algoritma konvensional untuk menemukan batas keputusan yang optimal.
+
+Sebaliknya, algoritma berbasis pohon (\textit{Random Forest} dan \textit{XGBoost}) menunjukkan dominasi yang absolut. Kemampuan mereka untuk melakukan \textit{feature selection} secara intrinsik pada setiap nodus cabang (\textit{branching}) menjadikannya sangat \textit{robust} terhadap dimensi HFV yang besar. 
+
+Puncak dari evaluasi ini dibuktikan oleh model \textbf{\textit{Ensemble Soft Voting}}. Dengan merata-rata probabilitas kelas dari RF dan XGBoost, model \textit{ensemble} berhasil menyeimbangkan keagresifan \textit{Boosting} dan stabilitas \textit{Bagging}. Model gabungan ini tidak hanya meraih nilai Akurasi tertinggi pada ketiga skenario (97.21\% untuk Biner, 93.81\% untuk Kategori, dan 93.70\% untuk Aplikasi), tetapi juga secara meyakinkan mempertahankan konsistensi metrik \textit{F1-Macro}.
+
+Oleh karena itu, kerangka kerja \textbf{\textit{Ensemble Soft Voting}} ditetapkan sebagai \textbf{Model Utama} yang akan digunakan secara eksklusif untuk seluruh pengujian lanjutan di Sub-bab selanjutnya, khususnya dalam pelaksanaan \textit{ablation study} untuk membedah signifikansi komponen fitur $\alpha, \beta,$ dan $\gamma$.
+
 %-----------------------------------------------------------------------------%
 \section{Optimasi Model (\textit{Hyperparameter Tuning})}
 \label{sec:optimasi_model}
 %-----------------------------------------------------------------------------%
 
-Setelah menetapkan \textit{Ensemble Soft Voting} (gabungan \textit{Random Forest} dan XGBoost) sebagai model utama, tahap selanjutnya adalah melakukan optimasi hiperparameter (\textit{hyperparameter tuning}). Proses ini bertujuan untuk menemukan kombinasi konfigurasi parameter internal algoritma yang mampu memaksimalkan kinerja prediktif model, sekaligus mencegah terjadinya \textit{overfitting}.
+Setelah menetapkan \textit{Ensemble Soft Voting} (kombinasi \textit{Random Forest} dan XGBoost) sebagai model utama, tahap selanjutnya adalah melakukan optimasi hiperparameter (\textit{hyperparameter tuning}). Proses ini bertujuan untuk menemukan kombinasi parameter internal algoritma yang paling optimal dalam memetakan pola \textit{Hybrid Flow Vector} (HFV), sekaligus meminimalkan risiko \textit{overfitting}.
 
-Proses optimasi dilakukan menggunakan teknik \textit{Randomized Search Cross-Validation} (\texttt{RandomizedSearchCV}) dengan metode validasi silang 3-lipatan (\textit{3-fold CV}). Pencarian parameter difokuskan pada Skenario 1 (Deteksi VPN) secara komprehensif, dengan asumsi bahwa parameter yang mendeteksi pola representasi HFV secara global akan berlaku optimal untuk Skenario yang lebih spesifik. Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta konfigurasi terbaik yang berhasil diidentifikasi untuk masing-masing algoritma dasar disajikan pada Tabel \ref{tab:hyperparameter_grid}.
+Mengingat kompleksitas dari masing-masing tugas klasifikasi berbeda-beda, proses optimasi dieksekusi secara independen untuk ketiga skenario pengujian. Optimasi dilakukan menggunakan metode \textit{Randomized Search Cross-Validation} (\texttt{RandomizedSearchCV}) dengan validasi silang 3-lipatan (\textit{3-fold CV}). Untuk menjamin agar tidak terjadi kebocoran statistik (\textit{statistics data leakage}) selama proses validasi silang, optimasi dienkapsulasi menggunakan mekanisme \textit{Pipeline} \textit{Scikit-Learn}, di mana proses standardisasi data (\textit{StandardScaler}) dikalibrasi ulang pada setiap iterasi lipatan pelatihan.
+
+Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta konfigurasi terbaik yang berhasil diidentifikasi untuk masing-masing algoritma dasar disajikan pada Tabel \ref{tab:hyperparameter_grid}.
+
+\begin{table}[htbp]
+\centering
+\caption{Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta konfigurasi terbaik yang berhasil diidentifikasi untuk masing-masing algoritma dasar.}
+\label{tab:hyperparameter_grid}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccc}
+\toprule
+\multirow{2}{*}{\textbf{Algoritma}} & \multirow{2}{*}{\textbf{Hiperparameter}} & \multirow{2}{*}{\textbf{Ruang Pencarian}} & \multicolumn{3}{c}{\textbf{Konfigurasi Terbaik}} \\ \cmidrule(lr){4-6} 
+ &  &  & \textbf{Skenario 1} & \textbf{Skenario 2} & \textbf{Skenario 3} \\ \midrule
+\multirow{4}{*}{Random Forest} & n\_estimators & \{100, 200, 300\} & 300 & 200 & 300 \\
+ & max\_depth & \{None, 10, 20, 30\} & 10 & 30 & 20 \\
+ & min\_samples\_split & \{2, 5, 10\} & 5 & 2 & 10 \\
+ & criterion & \{gini, entropy\} & entropy & gini & entropy \\ \midrule
+\multirow{4}{*}{XGBoost} & n\_estimators & \{100, 200, 300\} & 300 & 300 & 200 \\
+ & learning\_rate & \{0.01, 0.1, 0.2\} & 0.2 & 0.2 & 0.1 \\
+ & max\_depth & \{3, 6, 10\} & 10 & 10 & 10 \\
+ & subsample & \{0.8, 1.0\} & 0.8 & 0.8 & 0.8 \\ \bottomrule
+\end{tabular}%
+}
+\\ \vspace{0.2cm}
+\footnotesize{\textit{Catatan: Skenario 1 (Deteksi VPN), Skenario 2 (Kategori VPN), Skenario 3 (Aplikasi Spesifik).}}
+\end{table}
+
+Untuk memvalidasi efektivitas dari proses pencarian parameter ini, model \textit{Ensemble Soft Voting} dilatih ulang menggunakan parameter terbaik yang ditemukan untuk masing-masing skenario (\textit{Tuned Model}), kemudian kinerjanya dibandingkan secara langsung dengan model yang menggunakan parameter bawaan (\textit{Default/Base Model}). Evaluasi perbandingan ini diukur menggunakan metrik \textit{F1-Macro} pada himpunan data uji (\textit{test set}) terisolasi. Hasil perbandingan kinerja tersebut dirangkum pada Tabel \ref{tab:hasil_tuning_skenario}.
 
 \begin{table}[htbp]
     \centering
-    \caption{Ruang Pencarian Hiperparameter dan Parameter Terbaik yang Ditemukan}
-    \label{tab:hyperparameter_grid}
-    \resizebox{0.95\textwidth}{!}{%
-    \begin{tabular}{lllc}
+    \caption{Perbandingan Kinerja F1-Macro Model \textit{Default} vs \textit{Tuned} pada Tiga Skenario}
+    \label{tab:hasil_tuning_skenario}
+    \resizebox{0.9\textwidth}{!}{%
+    \begin{tabular}{l ccc}
         \toprule
-        \textbf{Model} & \textbf{Hiperparameter} & \textbf{Ruang Pencarian (\textit{Search Space})} & \textbf{Parameter Terbaik} \\
+        \textbf{Skenario Pengujian} & \textbf{\textit{Default/Base} (\%)} & \textbf{\textit{Tuned/Optimized} (\%)} & \textbf{Selisih Kinerja (\%)} \\
         \midrule
-        \multirow{5}{*}{\textit{Random Forest}} 
-        & \texttt{n\_estimators} & [100, 200, 300] & 100 \\
-        & \texttt{max\_depth} & [None, 10, 20, 30] & None \\
-        & \texttt{min\_samples\_split} & [2, 5, 10] & 5 \\
-        & \texttt{min\_samples\_leaf} & [1, 2, 4] & 1 \\
-        & \texttt{criterion} & ['gini', 'entropy'] & 'entropy' \\
-        \midrule
-        \multirow{4}{*}{XGBoost} 
-        & \texttt{n\_estimators} & [100, 200, 300] & 200 \\
-        & \texttt{max\_depth} & [3, 6, 10] & 6 \\
-        & \texttt{learning\_rate} & [0.01, 0.1, 0.2] & 0.2 \\
-        & \texttt{subsample} & [0.8, 1.0] & 0.8 \\
+        Skenario 1 (Deteksi VPN Biner) & 95.95 & 95.92 & -0.03 \\
+        Skenario 2 (Kategori VPN) & 91.07 & 91.85 & +0.78 \\
+        Skenario 3 (Aplikasi Spesifik) & 91.32 & 91.11 & -0.21 \\
         \bottomrule
     \end{tabular}%
     }
 \end{table}
 
-Untuk memvalidasi efektivitas dari parameter hasil \textit{tuning} tersebut, model \textit{Ensemble Soft Voting} dilatih ulang menggunakan parameter terbaik (\textit{Tuned Model}) dan kinerjanya dibandingkan secara langsung dengan model menggunakan parameter bawaan pustaka (\textit{Default Model}). Evaluasi perbandingan tersebut diukur menggunakan metrik \textit{F1-Macro} pada himpunan data uji (\textit{test set}) yang terisolasi.
+Berdasarkan Tabel \ref{tab:hasil_tuning_skenario}, ditemukan fenomena empiris yang sangat menarik. Implementasi parameter hasil optimasi (\textit{tuning}) tidak memberikan peningkatan performa yang revolusioner. Pada Skenario 2 (Kategori VPN), model berhasil memperoleh sedikit peningkatan marjinal sebesar 0.78\%. Namun, pada Skenario 1 dan Skenario 3, modifikasi hiperparameter justru memicu penurunan kinerja yang sangat kecil (masing-masing sebesar -0.03\% dan -0.21\%).
 
-\begin{table}[htbp]
-    \centering
-    \caption{Perbandingan Kinerja Model Sebelum dan Sesudah \textit{Tuning}}
-    \label{tab:hasil_tuning}
-    \begin{tabular}{lc}
-        \toprule
-        \textbf{Konfigurasi Model} & \textbf{Skor F1-Macro} \\
-        \midrule
-        \textit{Soft Voting} (Parameter Default) & 96.01\% \\
-        \textit{Soft Voting} (Parameter Optimals/Tuned) & 95.94\% \\
-        \midrule
-        \textbf{Selisih Kinerja} & \textbf{-0.07\%} \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+\subsection{Analisis Fenomena Kinerja Hiperparameter}
 
-Berdasarkan hasil komparasi pada Tabel \ref{tab:hasil_tuning}, ditemukan fenomena yang menarik di mana implementasi parameter hasil optimasi justru menghasilkan penurunan kinerja yang sangat marjinal sebesar 0.07\%. Secara statistik, selisih ini dianggap tidak signifikan (\textit{negligible}). 
+Dalam konteks \textit{machine learning}, selisih kinerja di bawah 1\% secara statistik dianggap tidak signifikan (\textit{negligible}). Fenomena stagnasi performa pasca-optimasi ini memberikan justifikasi akademis yang sangat krusial terkait kualitas data eksperimen:
 
-Temuan ini memberikan justifikasi empiris yang mengindikasikan dua hal penting. Pertama, arsitektur dasar algoritma \textit{Random Forest} dan XGBoost sudah sangat kuat dan stabil dalam menangani himpunan data berdimensi tinggi. Kedua, representasi fitur \textit{Hybrid Flow Vector} (HFV) yang diajukan dalam penelitian ini terbukti memiliki kualitas diskriminatif yang sangat tinggi (mampu memisahkan kelas dengan jelas). Ketajaman fitur penyusun HFV melakukan "tugas berat" (\textit{heavy lifting}) dalam proses klasifikasi, sehingga algoritma tidak memerlukan rekayasa parameter yang agresif untuk mencapai metrik evaluasi di atas 96\%.
+\begin{enumerate}
+    \item \textbf{Robustisitas Algoritma Bawaan:} Arsitektur dasar dari \textit{Random Forest} (berbasis \textit{Bagging}) dan XGBoost (berbasis \textit{Boosting}) sudah sangat tangguh (\textit{robust}) dalam menangani himpunan data berdimensi tinggi. Konfigurasi bawaan (\textit{default}) dari kedua pustaka tersebut telah dikalibrasi oleh pengembangnya untuk mencapai titik generalisasi yang seimbang secara \textit{out-of-the-box}.
+    \item \textbf{Daya Diskriminasi Vektor HFV:} Tidak adanya lonjakan performa yang drastis membuktikan bahwa arsitektur \textit{Hybrid Flow Vector} (HFV) yang diajukan sudah memiliki kualitas diskriminatif yang sangat tinggi. Fitur representasi $\alpha, \beta$, dan $\gamma$ melakukan "tugas berat" (\textit{heavy lifting}) dengan memisahkan topologi kelas secara jelas di ruang vektor, sehingga algoritma klasifikasi tidak memerlukan rekayasa parameter yang agresif untuk menemukan batas keputusan (\textit{decision boundary}) yang presisi.
+\end{enumerate}
 
-Sesuai dengan prinsip \textit{Occam's Razor} dalam pemodelan \textit{machine learning}—yang mengutamakan model paling sederhana jika kinerja yang dihasilkan setara—penelitian ini memutuskan untuk \textbf{mempertahankan penggunaan Parameter Default} pada model \textit{Ensemble Soft Voting}. Model bawaan ini dinilai memiliki tingkat generalisasi yang sedikit lebih baik pada data yang belum pernah dilihat (\textit{unseen data}). Oleh karena itu, seluruh eksperimen lanjutan pada sub-bab berikutnya, termasuk \textit{Ablation Study}, akan dieksekusi menggunakan konfigurasi tersebut.
+Berdasarkan temuan ini, dan sejalan dengan prinsip \textit{Occam's Razor}—yang mengutamakan model dengan kompleksitas terendah apabila kinerja yang dihasilkan setara—penelitian ini menetapkan untuk \textbf{mempertahankan penggunaan Parameter \textit{Default}} pada model \textit{Ensemble Soft Voting}. Keputusan ini diambil untuk meminimalkan risiko \textit{overfitting} pada parameter spesifik serta menjamin tingkat generalisasi model yang lebih baik pada data yang belum pernah dilihat di masa mendatang. Oleh karena itu, seluruh eksperimen lanjutan pada sub-bab berikutnya akan dieksekusi secara konsisten menggunakan model dengan konfigurasi bawaan.
 
 %-----------------------------------------------------------------------------%
 \section{\textit{Ablation Study} Komponen Fitur HFV}
 \label{sec:ablation_study}
 %-----------------------------------------------------------------------------%
-
-Inovasi utama dari kerangka kerja \textit{Hybrid Flow Vector} (HFV) $\Omega$ terletak pada hipotesis bahwa integrasi tiga pilar fitur yang merepresentasikan dimensi perilaku jaringan yang berbeda—yaitu pola \textit{byte-level} dari \textit{payload} ($\alpha$), statistik makroskopis \textit{flow} ($\beta$), dan dinamika waktu \textit{burst} ($\gamma$)—akan menghasilkan representasi (\textit{signature}) yang komprehensif. Untuk membuktikan signifikansi dan kontribusi masing-masing komponen penyusun tersebut, dilakukan \textit{ablation study} atau studi ablasi.
-
-Eksperimen ini mengevaluasi kinerja model \textit{Ensemble Soft Voting} (dengan konfigurasi parameter bawaan/default, merujuk pada temuan di Sub-bab sebelumnya) terhadap 7 (tujuh) kombinasi fitur yang berbeda. Berdasarkan proses ekstraksi data pada dataset ISCX 2016, dimensi fitur untuk masing-masing pilar terdefinisi sebagai berikut: komponen $\alpha$ memiliki 128 dimensi, komponen $\beta$ memiliki 47 dimensi, dan komponen $\gamma$ memiliki 74 dimensi, sehingga secara kumulatif membentuk vektor HFV utuh berdimensi 249.
-
-Hasil pengujian komprehensif yang mencakup metrik \textit{F1-Macro, Precision}, dan \textit{Recall} untuk ketujuh kombinasi fitur pada tiga tingkat skenario klasifikasi disajikan pada Tabel \ref{tab:ablation_study}.
 
 \begin{table}[htbp]
     \centering
@@ -241,20 +242,22 @@ Hasil pengujian komprehensif yang mencakup metrik \textit{F1-Macro, Precision}, 
     \label{fig:ablation_study_chart}
 \end{figure}
 
-\subsection{Analisis Kritis Temuan Eksperimental}
+Inovasi utama dari kerangka kerja \textit{Hybrid Flow Vector} (HFV) $\Omega$ terletak pada hipotesis bahwa integrasi tiga pilar fitur yang merepresentasikan dimensi perilaku jaringan yang berbeda—yaitu pola \textit{byte-level} dari \textit{payload} ($\alpha$), statistik makroskopis \textit{flow} ($\beta$), dan dinamika waktu \textit{burst} ($\gamma$)—akan menghasilkan representasi (\textit{signature}) yang komprehensif. Untuk membuktikan signifikansi dan kontribusi masing-masing komponen penyusun tersebut, dilakukan \textit{ablation study} atau studi ablasi.
 
-Berdasarkan data pada Tabel \ref{tab:ablation_study} dan visualisasi pada Gambar \ref{fig:ablation_study_chart}, terdapat beberapa temuan empiris yang mendasari analisis efektivitas kerangka kerja HFV:
+Eksperimen ini mengevaluasi kinerja model \textit{Ensemble Soft Voting} (dengan konfigurasi parameter bawaan/default, merujuk pada temuan di Sub-bab sebelumnya) terhadap tujuh kombinasi fitur yang berbeda. Berdasarkan proses ekstraksi data pada dataset ISCX 2016, dimensi fitur untuk masing-masing pilar terdefinisi sebagai berikut: komponen $\alpha$ memiliki 128 dimensi, komponen $\beta$ memiliki 47 dimensi, dan komponen $\gamma$ memiliki 74 dimensi, sehingga secara kumulatif membentuk vektor HFV utuh berdimensi 249.
 
-\textbf{1. Dominasi Fitur Statistik \textit{Flow} ($\beta$)} \\
+Hasil pengujian komprehensif yang mencakup metrik \textit{F1-Macro, Precision}, dan \textit{Recall} untuk ketujuh kombinasi fitur pada tiga tingkat skenario klasifikasi disajikan pada Tabel \ref{tab:ablation_study}.
+
+\subsection{Analisis Hasil Studi Ablasi}
+
+Berdasarkan data pada Tabel \ref{tab:ablation_study} dan visualisasi pada Gambar \ref{fig:ablation_study_chart}, terdapat beberapa temuan empiris yang mendasari analisis efektivitas kerangka kerja HFV yang diuraikan berikut.
+
 Pengujian secara independen mengungkap bahwa komponen $\beta$ (Statistik \textit{Flow}) memiliki daya diskriminasi (\textit{discriminative power}) yang sangat kuat. Sebagai fitur tunggal, $\beta$ mampu memimpin perolehan \textit{F1-Macro} pada ketiga skenario pengujian (mencapai puncak 96.23\% untuk klasifikasi biner dan 92.74\% untuk klasifikasi aplikasi). Tingginya performa ini secara logis dapat dijelaskan oleh mekanisme enkapsulasi VPN itu sendiri. Proses \textit{tunneling} secara inheren mengubah karakteristik makroskopis seperti total durasi \textit{flow}, distribusi volume paket \textit{client-to-server}, dan interval kedatangan (IAT), yang secara sempurna ditangkap oleh matriks representasi $\beta$.
 
-\textbf{2. Kemandirian Komponen \textit{Deep Learning} ($\alpha$) dan \textit{Burst} ($\gamma$)} \\
 Meskipun tidak mengungguli komponen $\beta$, hasil ablasi membuktikan bahwa representasi \textit{byte-level} murni dari model 1D-CNN ($\alpha$) dan analisis perilaku \textit{burst} temporal ($\gamma$) adalah vektor klasifikasi yang sah dan fungsional. Bahkan tanpa menggunakan fitur $\beta$ sama sekali, kombinasi $\alpha + \gamma$ tetap mampu mengklasifikasikan aplikasi VPN spesifik (Skenario 3) dengan metrik \textit{F1-Macro} yang mengesankan, yaitu 90.39\%. Hal ini mengonfirmasi bahwa setiap pilar dalam HFV mampu mengekstrak sinyal pembeda dari sudut pandang (\textit{modality}) yang independen.
 
-\textbf{3. Kutukan Dimensi (\textit{Curse of Dimensionality}) dan Trade-off Hibrida} \\
 Fenomena yang paling krusial untuk dibahas adalah marginalnya diferensiasi, atau bahkan sedikit penurunan performa (sekitar 0.1\% hingga 1.1\%), ketika komponen $\beta$ digabungkan dengan fitur lainnya menjadi vektor hibrida (Full HFV). Alih-alih mereduksi validitas HFV, anomali penurunan marjinal ini dapat dijelaskan secara teoritis melalui prinsip \textit{Curse of Dimensionality} dalam \textit{machine learning}. Mengekspansi ruang fitur secara drastis dari 47 dimensi (hanya $\beta$) menjadi 249 dimensi (Full HFV) berpotensi memperkenalkan komplesitas atau \textit{noise} tambahan pada topologi data, yang membuat tugas algoritma berbasis pohon (\textit{tree-based}) menjadi sedikit lebih berat di atas dataset yang statis (ISCX 2016). 
 
-\textbf{4. Keunggulan Full HFV: Mengutamakan Robustisitas di Atas Akurasi Statis} \\
 Meskipun fitur statistik $\beta$ terlihat superior pada data uji konvensional, mengandalkan parameter statistik agregat tunggal sangat rentan terhadap serangan \textit{evasion} (penghindaran) di dunia nyata, seperti \textit{traffic padding} (penyisipan paket \textit{dummy}) atau \textit{traffic shaping} (manipulasi durasi dan \textit{delay}). 
 
 Di sinilah letak justifikasi utama keberadaan vektor \textbf{Full HFV}. Model gabungan ($\alpha \oplus \beta \oplus \gamma$) menawarkan arsitektur keamanan yang jauh lebih \textit{robust} (tangguh). Dengan mengunci karakteristik lalu lintas pada tiga lapisan yang berbeda (pola \textit{byte payload}, makro-\textit{flow}, dan mikro-\textit{burst}), model hibrida secara eksponensial mempersulit upaya manipulasi lalu lintas oleh aktor ancaman. Dalam Skenario 2 (Kategori VPN), integrasi Full HFV terbukti berhasil mengangkat \textit{Precision} hingga menyentuh 92.24\% (mengungguli fitur tunggal mana pun). Selain itu, performa Full HFV terbukti sangat konsisten dan stabil (selalu berada di atas ambang batas 91.6\%) pada seluruh tingkat kompleksitas, dari deteksi biner hingga identifikasi aplikasi fine-grained.
@@ -264,78 +267,161 @@ Di sinilah letak justifikasi utama keberadaan vektor \textbf{Full HFV}. Model ga
 \label{sec:feature_importance}
 %-----------------------------------------------------------------------------%
 
-Meskipun model \textit{Ensemble Soft Voting} berbasis pohon keputusan (\textit{tree-based}) mampu mencapai akurasi klasifikasi yang tinggi, mekanisme pengambilan keputusan algoritmik ini sering kali dianggap sebagai "kotak hitam" (\textit{black-box}). Untuk menginterpretasikan bagaimana kerangka kerja \textit{Hybrid Flow Vector} (HFV) bekerja dalam menyelesaikan tugas paling kompleks, yaitu Skenario 3 (Klasifikasi Aplikasi Spesifik VPN), dilakukan analisis \textit{Feature Importance} (kepentingan fitur).
+Meskipun model \textit{Ensemble Soft Voting} berbasis pohon keputusan (\textit{tree-based}) mampu mencapai akurasi klasifikasi yang tinggi, mekanisme pengambilan keputusan algoritmik ini sering kali dianggap sebagai "kotak hitam" (\textit{black-box}). Untuk menginterpretasikan bagaimana kerangka kerja \textit{Hybrid Flow Vector} (HFV) beradaptasi terhadap berbagai tingkat kesulitan tugas klasifikasi, dilakukan analisis \textit{Feature Importance} (kepentingan fitur).
 
-Karena model utama merupakan gabungan dua algoritma, bobot kepentingan fitur diekstrak dari masing-masing model dasar (\textit{Random Forest} dan XGBoost), dinormalisasi, dan kemudian dirata-ratakan untuk mendapatkan nilai kepentingan absolut (skala 0 hingga 1). 
+Bobot kepentingan fitur diekstrak dari masing-masing model dasar (\textit{Random Forest} dan XGBoost), dinormalisasi, dan kemudian dirata-ratakan untuk mendapatkan nilai kepentingan absolut (skala 0 hingga 1) bagi setiap skenario pengujian.
 
-\subsection{Proporsi Kontribusi Komponen HFV}
+\subsection{Evolusi Proporsi Kontribusi Komponen HFV}
 
-Analisis pertama difokuskan pada agregasi kontribusi berdasarkan tiga pilar utama HFV ($\alpha, \beta, \gamma$). Distribusi persentase kepentingan dari masing-masing komponen diilustrasikan pada Tabel \ref{tab:proporsi_komponen} dan Gambar \ref{fig:feature_importance_pie}.
+Analisis pertama meninjau bagaimana model memprioritaskan ketiga pilar fitur ($\alpha, \beta, \gamma$) saat tingkat granularitas klasifikasi berubah dari deteksi biner hingga identifikasi aplikasi spesifik. Distribusi persentase kontribusi fitur untuk ketiga skenario dirangkum pada Tabel \ref{tab:proporsi_komponen_all}.
 
 \begin{table}[htbp]
     \centering
-    \caption{Total Kontribusi Tingkat Kepentingan per Pilar Fitur (Skenario 3)}
-    \label{tab:proporsi_komponen}
-    \begin{tabular}{lcc}
+    \caption{Evolusi Tingkat Kepentingan Komponen Fitur pada Tiga Skenario Pengujian}
+    \label{tab:proporsi_komponen_all}
+    \resizebox{1\textwidth}{!}{%
+    \begin{tabular}{l ccc}
         \toprule
-        \textbf{Komponen Fitur} & \textbf{Skor Kepentingan Absolut} & \textbf{Persentase (\%)} \\
+        \multirow{2}{*}{\textbf{Skenario Pengujian}} & \multicolumn{3}{c}{\textbf{Proporsi Kepentingan Fitur (\%)}} \\
+        \cmidrule(lr){2-4}
+        & \textbf{Alpha ($\alpha$) - DL} & \textbf{Beta ($\beta$) - Flow} & \textbf{Gamma ($\gamma$) - Burst} \\
         \midrule
-        \textbf{Alpha ($\alpha$) - DL/Payload} & \textbf{0.7456} & \textbf{74.57\%} \\
-        Gamma ($\gamma$) - \textit{Burst Stats} & 0.1308 & 13.09\% \\
-        Beta ($\beta$) - \textit{Flow Stats} & 0.1235 & 12.35\% \\
-        \midrule
-        \textbf{Total} & \textbf{1.0000} & \textbf{100.00\%} \\
+        Skenario 1 (Deteksi VPN Biner) & 40.17\% & 36.69\% & 23.15\% \\
+        Skenario 2 (Kategori Layanan) & 53.86\% & 20.77\% & 25.37\% \\
+        Skenario 3 (Aplikasi Spesifik) & \textbf{74.57\%} & 12.35\% & 13.09\% \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}%
+    }
 \end{table}
 
+Data pada Tabel \ref{tab:proporsi_komponen_all} mengungkap fenomena "Pergeseran Atensi" (\textit{Shift of Attention}) yang sangat signifikan:
+
+\begin{enumerate}
+    \item \textbf{Keseimbangan pada Deteksi Biner (Skenario 1):} \\
+    Untuk membedakan apakah lalu lintas merupakan VPN atau Non-VPN, model memanfaatkan strategi hibrida yang seimbang. Kontribusi fitur $\alpha$ (40.17\%) dan $\beta$ (36.69\%) relatif setara. Hal ini menunjukkan bahwa pembedaan lalu lintas terenkripsi pada level makro dapat dilakukan dengan melihat pola statistik ukuran paket ($\beta$) sekaligus struktur \textit{payload}-nya ($\alpha$).
+    
+    \item \textbf{Dominasi Alpha pada Klasifikasi \textit{Fine-Grained} (Skenario 3):} \\
+    Saat model dipaksa membedakan aplikasi spesifik (misalnya Skype vs Hangout), kontribusi fitur statistik $\beta$ menyusut drastis menjadi hanya 12.35\%. Sebaliknya, model secara agresif bergantung pada komponen \textit{Deep Learning} ($\alpha$) yang mendominasi keputusan hingga 74.57\%.
+\end{enumerate}
+
+Fenomena ini membuktikan hipotesis bahwa fitur statistik makroskopis ($\beta$) cenderung tumpang tindih (\textit{overlapping}) antar-aplikasi sejenis, sehingga tidak cukup diskriminatif untuk tugas \textit{fine-grained}. Model secara cerdas beradaptasi dengan beralih ke fitur $\alpha$ (representasi \textit{byte-level} abstrak) yang mampu menangkap "sidik jari" struktural unik dari setiap aplikasi.
+
+\subsection{Analisis Fitur Paling Berpengaruh (\textit{Top Features})}
+
+Untuk membedah lebih dalam, berikut adalah analisis fitur-fitur individu yang menduduki peringkat teratas pada masing-masing skenario.
+
+\subsubsection{Analisis Fitur Skenario 1 (Deteksi VPN)}
+
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\textwidth]{assets/pics/feature_importance_pie.png} % Pastikan path sesuai
-    \caption{Proporsi kontribusi komponen fitur pada model \textit{Ensemble Soft Voting} dalam mengklasifikasikan aplikasi spesifik VPN.}
-    \label{fig:feature_importance_pie}
+    \includegraphics[width=0.85\textwidth]{assets/pics/fi_bar_biner.png} 
+    \caption{Top 20 fitur paling signifikan untuk Deteksi VPN (Skenario 1).}
+    \label{fig:fi_bar_biner}
 \end{figure}
 
-Temuan ini mengungkap sebuah fenomena "pembalikan peran" (\textit{role reversal}) yang sangat signifikan dibandingkan hasil \textit{ablation study} (Sub-bab 4.4). Walaupun fitur statistik \textit{flow} ($\beta$) memiliki kinerja luar biasa ketika berdiri sendiri, saat model dihadapkan pada tugas klasifikasi \textit{fine-grained} menggunakan \textit{Full HFV}, model secara dominan menggeser titik berat keputusannya pada **komponen $\alpha$ (74.57\%)**.
+Pada Gambar \ref{fig:fi_bar_biner}, fitur paling dominan adalah \texttt{s2c\_size\_p25} (persentil ke-25 ukuran paket dari server ke klien) dengan skor ~0.144, diikuti oleh \texttt{alpha\_pp\_66}. Kehadiran fitur statistik paket (\texttt{s2c\_size}, \texttt{flow\_duration}) di papan atas mengindikasikan bahwa karakteristik unduhan (\textit{download pattern}) menjadi indikator utama untuk membedakan jalur VPN dengan lalu lintas reguler.
 
-Secara teknis, fenomena ini sangat logis. Aplikasi-aplikasi VPN yang berada dalam kategori yang sama (misalnya, Skype VoIP vs Hangout VoIP) akan memiliki profil makroskopis statistik $\beta$ (durasi dan ukuran paket) yang sangat mirip dan tumpang tindih. Oleh karena itu, algoritma pohon keputusan dipaksa untuk mencari variabel pembeda yang lebih absolut. Representasi \textit{byte-level} yang diekstrak oleh 1D-CNN ($\alpha$) berhasil menangkap \textit{fingerprint} struktural, sekuens inisialisasi koneksi (\textit{handshake}), atau pola presisi \textit{padding} kriptografis yang sangat spesifik untuk masing-masing aplikasi klien.
-
-\subsection{Analisis 20 Fitur Paling Berpengaruh (\textit{Top 20 Features})}
-
-Untuk membedah lebih dalam mengenai titik-titik pengambilan keputusan model, dilakukan pemeringkatan individu terhadap 249 fitur penyusun HFV. Visualisasi 20 fitur dengan skor kepentingan tertinggi disajikan pada Gambar \ref{fig:feature_importance_bar}.
+\subsubsection{Analisis Fitur Skenario 2 (Kategori VPN)}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.9\textwidth]{assets/pics/feature_importance_bar.png} % Pastikan path sesuai
-    \caption{Top 20 fitur paling signifikan dalam klasifikasi aplikasi VPN berdasarkan rata-rata skor \textit{Random Forest} dan XGBoost.}
-    \label{fig:feature_importance_bar}
+    \includegraphics[width=0.85\textwidth]{assets/pics/fi_bar_kategori.png} 
+    \caption{Top 20 fitur paling signifikan untuk Kategori VPN (Skenario 2).}
+    \label{fig:fi_bar_kategori}
 \end{figure}
 
-Sesuai dengan dominasi pilar $\alpha$, daftar \textit{Top 20} sepenuhnya dikuasai oleh representasi \textit{deep learning}. Dari 20 fitur terbaik, 19 di antaranya berasal dari vektor 1D-CNN (dengan \texttt{alpha\_pp\_92}, \texttt{alpha\_pp\_84}, dan \texttt{alpha\_pp\_105} sebagai tiga fitur paling krusial). Fitur numerik abstrak ini merepresentasikan bobot koneksi \textit{dense layer} dari arsitektur 1D-CNN yang merespons pola \textit{byte} paket mentah tertentu, membuktikan bahwa inspeksi struktural pada lapisan terenkripsi terendah adalah kunci untuk identifikasi aplikasi \textit{fine-grained}.
+Pada Skenario 2 (Gambar \ref{fig:fi_bar_kategori}), fitur abstrak dari komponen 1D-CNN mulai mengambil alih posisi puncak, dipimpin oleh \texttt{alpha\_pp\_105} dan \texttt{alpha\_pp\_84}. Meskipun demikian, fitur Gamma (\textit{Burst Stats}) seperti \texttt{c2s\_burst\_vol\_min} masih memainkan peran vital (peringkat ke-5). Hal ini logis mengingat perbedaan kategori layanan (misal: \textit{Streaming} vs \textit{Chat}) sangat erat kaitannya dengan perilaku "ledakan" (\textit{burstiness}) data.
 
-Hanya terdapat satu fitur dari pilar non-DL yang mampu bertahan di jajaran 20 besar, yaitu \texttt{c2s\_size\_max} (peringkat ke-15) yang berasal dari pilar $\beta$. Fitur yang merepresentasikan ukuran paket maksimum dari klien ke server (\textit{client-to-server}) ini menjadi anomali statistik yang penting, mengindikasikan bahwa beberapa aplikasi memiliki limitasi ukuran \textit{Maximum Transmission Unit} (MTU) atau perilaku \textit{fragmentasi} paket yang unik saat mengirimkan \textit{request} melalui lorong VPN.
+\subsubsection{Analisis Fitur Skenario 3 (Aplikasi Spesifik)}
 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/pics/fi_bar_aplikasi.png} 
+    \caption{Top 20 fitur paling signifikan untuk Aplikasi Spesifik (Skenario 3).}
+    \label{fig:fi_bar_aplikasi}
+\end{figure}
+
+Puncak dari evolusi atensi model terlihat pada Gambar \ref{fig:fi_bar_aplikasi}. Daftar 20 fitur teratas hampir sepenuhnya dikuasai oleh fitur Alpha, dengan \texttt{alpha\_pp\_92} memiliki skor kepentingan yang sangat masif (~0.179). 
+
+Satu-satunya fitur non-Alpha yang bertahan di 15 besar hanyalah \texttt{c2s\_size\_max} (peringkat 15). Temuan ini mengonfirmasi bahwa untuk membedakan aplikasi yang sangat mirip, model tidak lagi melihat "berapa besar" atau "berapa lama" aliran data tersebut (statistik), melainkan melihat "bagaimana struktur" data tersebut dibentuk di level \textit{byte} (pola $\alpha$). Ini memvalidasi urgensi penggunaan \textit{Deep Learning} dalam arsitektur hibrida untuk menyelesaikan masalah klasifikasi modern yang kompleks.
+
+%-----------------------------------------------------------------------------%
 \subsection{Analisis Multivariat dan Ortogonalitas Komponen (Matriks Korelasi)}
+\label{subsec:analisis_korelasi}
+%-----------------------------------------------------------------------------%
 
-Salah satu ancaman dalam rekayasa fitur hibrida yang masif adalah multikolinearitas (redukansi informasi antar fitur). Untuk mengonfirmasi bahwa pilar $\alpha, \beta,$ dan $\gamma$ menyumbangkan dimensi informasi yang bersifat independen (ortogonal), dilakukan analisis multivariat menggunakan Matriks Korelasi \textit{Spearman}. 
+Salah satu risiko utama dalam penggabungan fitur heterogen ($\alpha \oplus \beta \oplus \gamma$) adalah terjadinya multikolinearitas, di mana berbagai fitur membawa informasi yang redundan. Jika dua komponen memiliki korelasi linear yang sempurna, maka penggabungan keduanya tidak akan memberikan nilai tambah informasi (\textit{Information Gain}) bagi model.
 
-Sembilan (9) fitur teratas diambil untuk mewakili masing-masing pilar:
-\begin{itemize}
-    \item \textbf{Top $\alpha$}: \texttt{alpha\_pp\_92}, \texttt{alpha\_pp\_84}, \texttt{alpha\_pp\_105}
-    \item \textbf{Top $\beta$}: \texttt{c2s\_size\_max}, \texttt{flow\_total\_packets}, \texttt{s2c\_size\_mean}
-    \item \textbf{Top $\gamma$}: \texttt{c2s\_burst\_vol\_max}, \texttt{s2c\_burst\_vol\_mean}, \texttt{c2s\_burst\_dur\_min}
-\end{itemize}
+Untuk memvalidasi ortogonalitas (ketegaklurusan/independensi) antar-komponen HFV, dilakukan analisis korelasi \textit{Spearman Rank}. Analisis ini mengambil 3 fitur teratas (\textit{Top-3}) dari masing-masing komponen $\alpha, \beta,$ dan $\gamma$ pada setiap skenario, kemudian mengukur hubungan timbal-balik di antara 9 fitur tersebut.
+
+\subsubsection{Korelasi pada Deteksi Biner dan Kategori (Skenario 1 \& 2)}
+
+Pada tingkat klasifikasi yang lebih umum, visualisasi \textit{heatmap} (Gambar \ref{fig:corr_matrix_biner} dan Gambar \ref{fig:corr_matrix_kategori}) menunjukkan pola independensi yang cukup sehat.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.85\textwidth]{assets/pics/correlation_matrix.png} % Pastikan path sesuai
-    \caption{Matriks Korelasi (\textit{Spearman}) antar 9 representasi fitur teratas dari komponen $\alpha, \beta,$ dan $\gamma$.}
-    \label{fig:correlation_matrix}
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{assets/pics/corr_matrix_hardcoded_biner.png}
+        \caption{Matriks Korelasi Skenario 1 (Deteksi VPN).}
+        \label{fig:corr_matrix_biner}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{assets/pics/corr_matrix_hardcoded_kategori.png}
+        \caption{Matriks Korelasi Skenario 2 (Kategori VPN).}
+        \label{fig:corr_matrix_kategori}
+    \end{minipage}
 \end{figure}
 
-Sebagaimana diilustrasikan pada matriks \textit{heatmap} (Gambar \ref{fig:correlation_matrix}), terdapat korelasi intragrup yang lumrah (misalnya, sesama fitur $\beta$ ukuran paket saling berkorelasi). Namun, temuan krusialnya terletak pada relasi \textbf{antargrup}. 
+Pada Skenario 1, meskipun terdapat korelasi moderat antara fitur statistik \textit{burst} ($\gamma$) dan durasi \textit{flow} ($\beta$), fitur-fitur \textit{Deep Learning} ($\alpha$) seperti \texttt{alpha\_pp\_108} menunjukkan independensi mutlak dengan korelasi mendekati nol terhadap fitur fisik (contoh: korelasi -0.011 terhadap \texttt{c2s\_burst\_dur\_sum}). Hal ini mengonfirmasi bahwa pada tahap deteksi awal, $\alpha$ dan $\beta$ bekerja saling melengkapi tanpa tumpang tindih.
 
-Korelasi antara matriks representasi \textit{byte-level} ($\alpha$) dengan metrik statistik jaringan klasik ($\beta$ dan $\gamma$) cenderung lemah. Temuan empiris ini adalah validasi absolut atas kebaruan metodologi \textit{Hybrid Flow Vector} (HFV). Matriks korelasi membuktikan bahwa 1D-CNN tidak sekadar mengaproksimasi ulang statistik dasar \textit{flow}, melainkan mengekstraksi informasi struktural yang benar-benar independen dan tidak dapat diamati secara kasat mata oleh penganalisis lalu lintas statistik tradisional. Penggabungan informasi yang ortogonal ini menjadi alasan mengapa vektor HFV sangat \textit{robust} dan sulit untuk dihindari (\textit{evasion-resistant}) oleh teknik penyamaran aplikasi.
+\subsubsection{Korelasi pada Klasifikasi Aplikasi Spesifik (Skenario 3)}
+
+Temuan paling krusial dan mendalam terdapat pada Skenario 3 (Aplikasi Spesifik), di mana model sangat bergantung pada fitur $\alpha$. Matriks korelasi pada Gambar \ref{fig:corr_matrix_aplikasi} dan ringkasan numerik pada Tabel \ref{tab:pasangan_korelasi} menjelaskan fenomena ini secara matematis.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/pics/corr_matrix_hardcoded_aplikasi.png}
+    \caption{Matriks Korelasi \textit{Spearman} pada Skenario 3. Kotak merah menunjukkan redundansi tinggi antara Beta-Gamma, sedangkan area biru menunjukkan independensi Alpha.}
+    \label{fig:corr_matrix_aplikasi}
+\end{figure}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Analisis Pasangan Fitur Ekstrem pada Skenario 3 (Aplikasi Spesifik)}
+    \label{tab:pasangan_korelasi}
+    \resizebox{0.95\textwidth}{!}{%
+    \begin{tabular}{llcc}
+        \toprule
+        \textbf{Pasangan Fitur} & \textbf{Komponen} & \textbf{Koefisien Korelasi} & \textbf{Interpretasi} \\
+        \midrule
+        \multicolumn{4}{l}{\textit{\textbf{Korelasi Tertinggi (Redundansi Tinggi)}}} \\
+        \texttt{s2c\_size\_mean} vs \texttt{s2c\_burst\_vol\_mean} & $\beta$ vs $\gamma$ & \textbf{0.926} & Sangat Redundan \\
+        \texttt{c2s\_burst\_vol\_max} vs \texttt{flow\_total\_packets} & $\gamma$ vs $\beta$ & \textbf{0.918} & Sangat Redundan \\
+        \texttt{c2s\_burst\_vol\_max} vs \texttt{c2s\_size\_max} & $\gamma$ vs $\beta$ & \textbf{0.886} & Sangat Redundan \\
+        \midrule
+        \multicolumn{4}{l}{\textit{\textbf{Korelasi Terendah (Ortogonalitas Tinggi)}}} \\
+        \texttt{alpha\_pp\_105} vs \texttt{alpha\_pp\_92} & $\alpha$ vs $\alpha$ & \textbf{-0.026} & Independen Internal \\
+        \texttt{s2c\_size\_mean} vs \texttt{alpha\_pp\_105} & $\beta$ vs $\alpha$ & \textbf{0.054} & Independen Eksternal \\
+        \texttt{alpha\_pp\_92} vs \texttt{alpha\_pp\_84} & $\alpha$ vs $\alpha$ & \textbf{0.062} & Independen Internal \\
+        \texttt{flow\_total\_packets} vs \texttt{alpha\_pp\_92} & $\beta$ vs $\alpha$ & \textbf{0.096} & Independen Eksternal \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+Analisis data di atas mengungkap dua fakta kunci yang memvalidasi keunggulan model HFV:
+
+\begin{enumerate}
+    \item \textbf{Redundansi Beta dan Gamma ($\rho > 0.9$):} \\
+    Terdapat korelasi positif yang sangat kuat (mencapai 0.926) antara fitur statistik \textit{flow} ($\beta$) dan statistik \textit{burst} ($\gamma$). Hal ini menunjukkan bahwa pada level aplikasi spesifik, informasi mengenai "volume ledakan data" ($\gamma$) pada dasarnya membawa informasi yang sama dengan "rata-rata ukuran paket" ($\beta$). Redundansi informasi ini menjelaskan mengapa kontribusi kepentingan (\textit{importance}) kedua komponen ini menyusut drastis (hanya ~12-13\%) pada Skenario 3, karena model menganggap keduanya tidak memberikan variasi informasi baru yang signifikan.
+
+    \item \textbf{Ortogonalitas Sempurna Alpha ($\rho \approx 0$):} \\
+    Sebaliknya, fitur \texttt{alpha\_pp\_92} (fitur terpenting di Skenario 3) memiliki korelasi yang nyaris nol (0.096) terhadap \texttt{flow\_total\_packets}. Artinya, informasi yang dibawa oleh \textit{Deep Learning} benar-benar tegak lurus dan tidak memiliki hubungan linear dengan statistik lalu lintas konvensional. 
+    
+    Fitur $\alpha$ merepresentasikan pola struktural \textit{byte} (seperti urutan \textit{handshake} aplikasi) yang tetap unik meskipun statistik ukuran paketnya mirip dengan aplikasi lain. Inilah bukti empiris terkuat bahwa \textbf{integrasi 1D-CNN memberikan dimensi kecerdasan baru} yang tidak dapat dicapai hanya dengan analisis statistik tradisional.
+\end{enumerate}
 
 %-----------------------------------------------------------------------------%
 \section{Analisis Kesalahan (\textit{Confusion Matrix})}

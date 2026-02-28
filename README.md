@@ -49,7 +49,7 @@ The codebase is built entirely using Python and Jupyter Notebooks, structured as
 *   **`alpha1.ipynb`** & **`alpha2.ipynb`**
     *   Handles the deep learning component. It extracts raw payloads from the cleaned flows, preprocesses them into fixed-length byte arrays, and utilizes the 1D-CNN to generate the 128-dimensional $\alpha$ feature vectors.
 *   **`beta.ipynb`**
-    *   Iterates through the PCAP flows to calculate and extract the 39-dimensional flow-level statistical metrics ($\beta$/$\delta$ features).
+    *   Iterates through the PCAP flows to calculate and extract the 39-dimensional flow-level statistical metrics ($\beta$ features).
 *   **`gamma.ipynb`**
     *   Focuses on the temporal dynamics, grouping packets into bursts and calculating the 37-dimensional burst-level statistical metrics ($\gamma$ features).
 
@@ -58,7 +58,7 @@ The codebase is built entirely using Python and Jupyter Notebooks, structured as
     *   This notebook acts as the joiner. It takes the independent feature vectors ($\alpha$, $\beta$, and $\gamma$) generated in the previous steps and aligns them per-flow to create the final unified Hybrid Flow Vector datasets (typically outputting as CSV or NumPy arrays).
 
 ### 4. Classification & Evaluation
-*   **`HFV_classifier.ipynb`** / **`HFV_Experiment.ipynb`**
+*   **`HFV_Experiment.ipynb`**
     *   The core machine learning experimental loop. It loads the merged HFV dataset and runs "tournaments" or ablation studies to evaluate various traditional classifiers (such as Random Forest).
     *   It evaluates different feature combinations (e.g., Alpha only, Beta only, Full Hybrid) across multiple classification tasks (Binary, Category, Application) and generates the evaluation metrics and plots.
 
