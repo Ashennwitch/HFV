@@ -1,0 +1,429 @@
+\documentclass[
+  aspectratio=169,
+]{beamer}
+
+\usepackage[bahasa]{babel} % Disesuaikan ke Bahasa Indonesia
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{csquotes}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usetheme[
+  workplace=is,
+]{MU}
+
+% --- PENGATURAN INFORMASI PRESENTASI ---
+\title[Klasifikasi VPN dengan HFV]{Klasifikasi \textit{Fine-Grained} Lalu Lintas VPN Terenkripsi Menggunakan \textit{Hybrid Flow Vector} (HFV)}
+\subtitle[Sidang Skripsi]{Sidang Tugas Akhir}
+
+% Menggunakan nama penulis berdasarkan draf abstrak, silakan ubah placeholder pembimbing
+\author[Hanif Nur Ilham Sanjaya]{Hanif Nur Ilham Sanjaya\texorpdfstring{\\}{, }Dosen Pembimbing: [Nama Pembimbing Anda]} 
+\institute[Universitas]{Program Studi Teknik Komputer}
+\date{\today}
+\subject{Presentasi Sidang Skripsi}
+\keywords{Klasifikasi VPN, Hybrid Flow Vector, Encrypted Traffic Analysis, Deep Learning}
+
+\begin{document}
+
+% ==========================================
+% SLIDE 1: JUDUL PRESENTASI
+% ==========================================
+\begin{frame}[plain]
+\maketitle
+\end{frame}
+
+\section{Pendahuluan}
+
+% ==========================================
+% SLIDE 2: LATAR BELAKANG MASALAH
+% ==========================================
+\begin{frame}[shrink=5]{Latar Belakang Masalah}{}
+\begin{itemize}
+  \item Transformasi digital telah mendorong adopsi enkripsi secara masif hingga melindungi sekitar 95\% dari total lalu lintas web saat ini.
+  \item Peningkatan privasi ini sayangnya ikut dimanfaatkan oleh penjahat siber, di mana tercatat 85.9\% serangan siber kini disembunyikan di dalam saluran terenkripsi.
+  \item Sistem keamanan jaringan konvensional seperti \textit{Deep Packet Inspection} (DPI) kehilangan efektivitasnya karena menjadi "buta" terhadap konten data yang terenkripsi.
+  \item Solusi dekripsi di tengah jalan (\textit{Man-in-the-Middle}) juga tidak ideal karena memakan biaya komputasi yang sangat tinggi, merusak integritas data, dan memicu isu pelanggaran privasi.
+\end{itemize}
+
+\begin{alertblock}{Urgensi Penelitian}
+Dibutuhkan metode klasifikasi dan pemantauan jaringan yang \textbf{\textit{payload-agnostic}} (mampu bekerja tanpa perlu mendekripsi data) untuk menjamin keamanan tanpa mengorbankan privasi pengguna.
+\end{alertblock}
+\end{frame}
+
+% ==========================================
+% SLIDE 3: KESENJANGAN, TUJUAN & BATASAN
+% ==========================================
+\begin{frame}{Kesenjangan, Tujuan, dan Batasan Penelitian}{}
+\begin{itemize}
+  \item Metode \textit{Encrypted Traffic Analysis} (ETA) saat ini masih kesulitan melakukan identifikasi \textit{fine-grained} pada level aplikasi karena mayoritas hanya mengandalkan satu jenis fitur ekstraksi.
+  
+  \item Mengatasi hal tersebut, penelitian ini bertujuan mengembangkan model representasi \textit{Hybrid Flow Vector} (HFV) untuk mencapai klasifikasi \textit{fine-grained} tanpa perlu mendekripsi \textit{payload} data.
+  
+  \item Ruang lingkup pengujian dievaluasi menggunakan dataset ISCX 2016 dengan kondisi \textit{flow} jaringan diasumsikan telah melalui tahap pembersihan (\textit{preprocessing}) yang ideal.
+  
+  \item Pemrosesan untuk ekstraksi fitur \textit{deep learning} dibatasi secara spesifik pada analisis 10 paket pertama dengan ukuran maksimum 784 \textit{byte} per paket.
+\end{itemize}
+\end{frame}
+
+\section{Metodologi}
+
+% ==========================================
+% SLIDE 4: USULAN SOLUSI (HFV)
+% ==========================================
+\begin{frame}[shrink=6]{Usulan Solusi: \textit{Hybrid Flow Vector} (HFV)}{}
+\begin{columns}[T]
+    
+    % Kolom Kiri: Penjelasan Ringkas
+    \begin{column}{0.48\textwidth}
+    \vspace{0.5cm}
+    \begin{itemize}
+        \item HFV mengekstrak representasi jaringan menjadi \textbf{249 fitur} multi-modal secara \textit{payload-agnostic} (tanpa dekripsi) guna menjaga privasi pengguna.
+        
+        \item Pendekatan ini mengintegrasikan tiga pilar utama, yaitu fitur level \textit{byte} ($\alpha$), level \textit{flow} ($\beta$), dan level \textit{burst} ($\gamma$) ke dalam satu kesatuan $\Omega = \alpha \oplus \beta \oplus \gamma$.
+        
+        \item Ketiga pilar tersebut bekerja secara komplementer untuk menganalisis bentuk data mentah, statistik makro, dan ritme waktu pengiriman secara bersamaan tanpa perlu membuka isi pesan.
+    \end{itemize}
+    \end{column}
+    
+    % Kolom Kanan: Gambar 3.1 (Arsitektur Makro HFV)
+    \begin{column}{0.48\textwidth}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth,height=0.95\textheight,keepaspectratio]{assets/pics/macro_arch.PNG}
+    \end{figure}
+    \end{column}
+
+\end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 5: KOMPONEN ALPHA & PENGANTAR STATISTIK BETA-GAMMA
+% ==========================================
+\begin{frame}{Ekstraksi Fitur: Level-Byte ($\alpha$) \& Pengantar Statistik ($\beta, \gamma$)}{}
+\scriptsize
+\structure{1. Representasi Level-Byte ($\alpha$)}
+\begin{itemize}
+    \item Arsitektur 1D-CNN digunakan untuk "mengintip" \textit{payload} mentah terenkripsi (terbatas pada 10 paket pertama per \textit{flow}, diubah menjadi 784 \textit{byte}/paket).
+    \item Proses ini menghasilkan \textbf{128 fitur} yang merekam presisi struktural dan pola kriptografis pada level terbawah.
+\end{itemize}
+
+\small
+\begin{columns}[T]
+\begin{column}{0.40\textwidth}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth,keepaspectratio]{assets/pics/cnn_architecture_genai.png}
+    \end{figure}
+\end{column}
+\begin{column}{0.60\textwidth}
+    \structure{2. Pengantar Variabel Fitur Statistik ($\beta$ \& $\gamma$)}
+    \tiny
+    \renewcommand{\arraystretch}{1.0}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{@{}p{0.26\linewidth}@{}p{0.33\linewidth}@{}p{0.39\linewidth}@{}}
+        \toprule
+        \textbf{Komponen} & \textbf{Variabel Observasi} & \textbf{Fungsi Statistik Terapan} \\
+        \midrule
+        \textbf{Statistik Flow ($\beta$)} & Ukuran Paket \& \textit{Inter-Arrival Time} (Dipisah Bidireksional: C2S, S2C) & \multirow{2}{=}{\textit{Count, Sum, Mean, Std. Dev, Min, Max, Median, 25th Percentile (p25), 75th Percentile (p75)}} \\ 
+        \cmidrule{1-2}
+        \textbf{Statistik Burst ($\gamma$)} & Jumlah Paket, Volume, Durasi, dan Waktu \textit{Idle} di setiap \textit{Burst} & \\ 
+        \midrule
+        \textbf{Fitur Global Tambahan} & \multicolumn{2}{l}{Durasi \textit{Flow}, Total Volume, Total Paket ($\beta$), dan Total \textit{Burst} ($\gamma$)} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 6: KONSEP VISUAL BETA & GAMMA
+% ==========================================
+\begin{frame}[t,shrink=8]{Konseptualisasi Fitur Statistik \textit{Flow} ($\beta$) \& \textit{Burst} ($\gamma$)}{}
+\begin{columns}[T]
+    
+    % Kolom Kiri: Penjelasan dan Gambar Beta
+    \begin{column}{0.48\textwidth}
+    \structure{Statistik \textit{Flow} ($\beta$) $\rightarrow$ \textbf{39 Fitur}}
+    \begin{itemize}
+        \item Menangkap profil makroskopis dari keseluruhan komunikasi data jaringan.
+        \item Pemisahan arah (\textit{bidirectional}) mengungkap pola asimetris antara pengiriman dan penerimaan aplikasi.
+    \end{itemize}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.92\textwidth,keepaspectratio]{assets/pics/beta_extraction_genai.png}
+    \end{figure}
+    \end{column}
+    
+    % Kolom Kanan: Penjelasan dan Gambar Gamma
+    \begin{column}{0.48\textwidth}
+    \structure{Statistik \textit{Burst} ($\gamma$) $\rightarrow$ \textbf{37 Fitur}}
+    \begin{itemize}
+        \item Membedah ritme transmisi interaktif (siklus \textit{on-off}) khas layanan \textit{streaming} atau \textit{chat}.
+        \item Segmen interaksi (\textit{burst}) dibatasi oleh ambang waktu diam (\textit{idle threshold}) minimum 1,0 detik.
+    \end{itemize}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.92\textwidth,keepaspectratio]{assets/pics/burst_logic_genai.png}
+    \end{figure}
+    \end{column}
+
+\end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 7: ARSITEKTUR MODEL MACHINE LEARNING
+% ==========================================
+\begin{frame}{Arsitektur Model \textit{Machine Learning}}{}
+\begin{columns}[T]
+    
+    % Kolom Kiri: Penjelasan Ringkas
+    \begin{column}{0.48\textwidth}
+    \vspace{0.2cm}
+    \begin{itemize}
+       \item Seluruh vektor fitur HFV terlebih dahulu dinormalisasi menggunakan \textit{Z-score Standardization} sebelum diproses oleh model \textit{Ensemble Learning} yang menggabungkan algoritma \textit{Random Forest} dan XGBoost.
+        
+        \item Penentuan kelas akhir menggunakan mekanisme \textit{Soft Voting}, di mana sistem tidak sekadar melakukan voting mutlak melainkan merata-ratakan probabilitas keyakinan dari kedua algoritma dasar tersebut.
+        
+    \end{itemize}
+    \end{column}
+    
+    % Kolom Kanan: Gambar 3.10 (Arsitektur Ensemble Soft Voting)
+    \begin{column}{0.48\textwidth}
+    \begin{figure}
+        \centering
+        % Gambar 3.10 sesuai dengan rujukan di draf Bab 3
+        \includegraphics[width=\textwidth,keepaspectratio]{assets/pics/soft_voting_arch_genai.png}
+    \end{figure}
+    \end{column}
+
+\end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 8: KINERJA ALGORITMA & SKENARIO
+% ==========================================
+\begin{frame}{Evaluasi Kinerja: Algoritma \& Skenario Klasifikasi}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Model \textit{Ensemble Soft Voting} secara konsisten mendominasi performa di seluruh tingkat kesulitan klasifikasi, membuktikan bahwa arsitektur gabungan ini sangat tangguh dalam memproses dimensi representasi HFV yang tinggi dan kompleks.
+    \end{itemize}
+    
+    \vspace{0.2cm}
+    
+    % Baris 2: Gambar Grafik (Memaksimalkan sisa ruang)
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\textwidth,height=0.65\textheight,keepaspectratio]{assets/pics/komparasi_algoritma_antibocor.png}
+    \end{figure}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 9: STUDI ABLASI (ABLATION STUDY)
+% ==========================================
+\begin{frame}{Studi Ablasi (\textit{Ablation Study}) Komponen HFV}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Walaupun parameter makroskopis tunggal ($\beta$) kuat pada deteksi awal, integrasi \textbf{Full HFV} mutlak diperlukan untuk menstabilkan ketajaman klasifikasi aplikasi sekaligus menciptakan arsitektur keamanan yang kebal terhadap manipulasi lalu lintas (\textit{evasion-resistant}).
+    \end{itemize}
+    
+    \vspace{0.2cm}
+    
+    % Baris 2: Gambar Grafik (Memaksimalkan sisa ruang)
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\textwidth,height=0.62\textheight,keepaspectratio]{assets/pics/ablation_study.png}
+    \end{figure}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 10: FEATURE IMPORTANCE (SKENARIO 1 & 2)
+% ==========================================
+\begin{frame}{Analisis Kepentingan Fitur: Deteksi Biner \& Kategori}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Pada klasifikasi level makro (Biner dan Kategori), bobot keputusan model terdistribusi lebih merata, di mana pengenalan pola struktural ($\alpha$) bekerja secara sinergis dengan dukungan kontribusi signifikan dari fitur statistik heuristik ($\beta$ dan $\gamma$).
+    \end{itemize}
+    
+    \vspace{0.4cm}
+    
+    % Baris 2: Gambar Grafik (Dua gambar berdampingan)
+    \begin{columns}[T]
+        \begin{column}{0.5\textwidth}
+            \centering
+            % Gambar grafik bar Skenario 1
+            \includegraphics[width=0.95\textwidth,height=0.55\textheight,keepaspectratio]{assets/pics/fi_bar_biner.png}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \centering
+            % Gambar grafik bar Skenario 2
+            \includegraphics[width=0.95\textwidth,height=0.55\textheight,keepaspectratio]{assets/pics/fi_bar_kategori.png}
+        \end{column}
+    \end{columns}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 11: FEATURE IMPORTANCE (SKENARIO 3)
+% ==========================================
+\begin{frame}{Analisis Kepentingan Fitur: Aplikasi Spesifik}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Saat dipaksa membedakan aplikasi spesifik, terjadi pergeseran atensi (\textit{shift of attention}) ekstrem di mana model bergantung nyaris absolut pada pola struktural \textit{Deep Learning} ($\alpha$) guna menemukan "sidik jari" unik aplikasi.
+    \end{itemize}
+    
+    \vspace{0.2cm}
+
+    % Baris 2: Gambar dan Tabel berdampingan
+    % Menggunakan [c] agar gambar dan tabel sejajar cantik secara vertikal di tengah
+    \begin{columns}[c,onlytextwidth]
+        
+        \begin{column}{0.55\textwidth}
+            \begin{figure}
+                \centering
+                % Gambar grafik bar Skenario 3
+                \includegraphics[width=\linewidth,height=0.55\textheight,keepaspectratio]{assets/pics/fi_bar_aplikasi.png}
+            \end{figure}
+        \end{column}
+        
+        \begin{column}{0.43\textwidth}
+            \begin{table}
+                \centering
+                \caption{Proporsi Kepentingan Fitur}
+                % Resizebox memaksa tabel pas dengan lebar kolom 0.43\textwidth tanpa overflow
+                \resizebox{\linewidth}{!}{%
+                \renewcommand{\arraystretch}{1.3}
+                \begin{tabular}{@{}lccc@{}}
+                    \toprule
+                    \textbf{Skenario} & \textbf{Alpha ($\alpha$)} & \textbf{Beta ($\beta$)} & \textbf{Gamma ($\gamma$)} \\
+                    \midrule
+                    Biner & 40.17\% & 36.69\% & 23.15\% \\
+                    Kategori & 53.86\% & 20.77\% & 25.37\% \\
+                    Aplikasi & \textbf{74.57\%} & 12.35\% & 13.09\% \\
+                    \bottomrule
+                \end{tabular}%
+                }
+            \end{table}
+        \end{column}
+        
+    \end{columns}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 12: ANALISIS KESALAHAN (CONFUSION MATRIX)
+% ==========================================
+\begin{frame}{Analisis Kesalahan Klasifikasi (\textit{Confusion Matrix})}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Meskipun berkinerja sangat tinggi, model masih memiliki titik lemah (\textit{blind spot}) spesifik terhadap lalu lintas yang terdistorsi oleh \textit{padding} kriptografis (seperti anomali pada kategori \textit{Chat}) serta pada aplikasi \textit{multi-modal} berbasis CDN dengan enkripsi ganda (tumpang tindih Facebook dan Hangout).
+    \end{itemize}
+    
+    \vspace{0.4cm}
+    
+    % Baris 2: Gambar Grafik (Dua gambar berdampingan)
+    \begin{columns}[T]
+        \begin{column}{0.5\textwidth}
+            \centering
+            % Gambar Confusion Matrix Kategori
+            \includegraphics[width=0.95\textwidth,height=0.55\textheight,keepaspectratio]{assets/pics/confusion_matrix_kategori.png}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \centering
+            % Gambar Confusion Matrix Aplikasi Spesifik
+            \includegraphics[width=0.95\textwidth,height=0.55\textheight,keepaspectratio]{assets/pics/confusion_matrix_aplikasi.png}
+        \end{column}
+    \end{columns}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 13: KESIMPULAN
+% ==========================================
+\begin{frame}{Kesimpulan}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Kerangka kerja \textit{Hybrid Flow Vector} (HFV) terbukti sukses memberikan visibilitas jaringan secara \textit{payload-agnostic} dengan menggabungkan tiga pilar ortogonal untuk menciptakan \textit{signature} aplikasi yang sangat tangguh (\textit{evasion-resistant}).
+    \end{itemize}
+    
+    \vspace{0.4cm}
+    
+    % Baris 2: Tiga Blok Penjelasan Ringkas
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.31\textwidth}
+            \begin{block}{Akurasi Sangat Tinggi}
+            Mencatatkan performa \textit{F1-Macro} 96.01\% (Biner), 91.84\% (Kategori), dan 91.62\% (Aplikasi) melalui arsitektur \textit{Ensemble Soft Voting}.
+            \end{block}
+        \end{column}
+        \hfill
+        \begin{column}{0.31\textwidth}
+            \begin{block}{Sifat Komplementer}
+            Statistik makroskopis sangat efektif untuk mendeteksi VPN, sementara \textit{Deep Learning} mutlak diperlukan untuk menembus klasifikasi \textit{fine-grained}.
+            \end{block}
+        \end{column}
+        \hfill
+        \begin{column}{0.31\textwidth}
+            \begin{alertblock}{Ketahanan Arsitektur}
+            Integrasi penuh ($\alpha \oplus \beta \oplus \gamma$) terbukti tidak sekadar redundan, melainkan menutupi kelemahan parameter statistik dari manipulasi penyerang.
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 14: SARAN & PENGEMBANGAN MASA DEPAN
+% ==========================================
+\begin{frame}{Saran dan Pengembangan Masa Depan}{}
+
+    % Baris 1: Teks 1 Poin Temuan Utama
+    \begin{itemize}
+        \item Untuk mengimbangi kecepatan evolusi arsitektur jaringan, penelitian selanjutnya perlu mengeksplorasi analisis temporal tingkat lanjut dan memperluas validasi pada protokol komunikasi modern.
+    \end{itemize}
+    
+    \vspace{0.4cm}
+    
+    % Baris 2: Tiga Blok Rekomendasi
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.31\textwidth}
+            \begin{exampleblock}{Analisis \textit{Jitter} Pesan}
+            Mengeksplorasi derivatif waktu tingkat milidetik untuk menembus manipulasi \textit{padding} pada ukuran paket homogen di aplikasi \textit{chatting}.
+            \end{exampleblock}
+        \end{column}
+        \hfill
+        \begin{column}{0.31\textwidth}
+            \begin{exampleblock}{Arsitektur Sekuensial}
+            Memperluas 1D-CNN menjadi arsitektur \textit{Transformer} atau LSTM untuk menangkap hubungan temporal jangka panjang pada layanan berbasis CDN.
+            \end{exampleblock}
+        \end{column}
+        \hfill
+        \begin{column}{0.31\textwidth}
+            \begin{exampleblock}{Evaluasi \textit{Real-Time}}
+            Melakukan pengujian ulang pada protokol mutakhir (QUIC / TLS 1.3) serta melakukan optimasi komputasi agar dapat beroperasi sebagai sensor IDS \textit{live-network}.
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+
+\end{frame}
+
+% ==========================================
+% SLIDE 15: PENUTUP
+% ==========================================
+\begin{frame}[plain]
+    \vfill
+    \begin{center}
+        {\Huge \structure{Terima Kasih}}
+    \end{center}
+    \vfill
+\end{frame}
+
+\end{document}
