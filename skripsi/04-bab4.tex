@@ -106,8 +106,8 @@ Untuk menjamin integritas evaluasi, penelitian ini mengimplementasikan pemetaan 
         K-Nearest Neighbors (KNN) & 86.37 & 81.73 & 82.49 & 81.99 \\
         Support Vector Machine (SVM) & 86.90 & 88.24 & 80.34 & 83.02 \\
         eXtreme Gradient Boosting (XGB) & 92.57 & 90.39 & 89.88 & 90.11 \\
-        Random Forest (RF) & 92.74 & 92.61 & 91.16 & \textbf{91.86} \\
-        \textbf{Ensemble Soft Voting (RF+XGB)} & \textbf{93.81} & \textbf{92.24} & \textbf{91.50} & 91.84 \\
+        Random Forest (RF) & 92.74 & \textbf{92.61} & 91.16 & \textbf{91.86} \\
+        \textbf{Ensemble Soft Voting (RF+XGB)} & \textbf{93.81} & 92.24 & \textbf{91.50} & 91.84 \\
         \midrule
         \multicolumn{5}{c}{\textbf{Skenario 3: Klasifikasi Aplikasi Spesifik VPN}} \\
         \midrule
@@ -508,7 +508,7 @@ Distribusi \textit{Confusion Matrix} menunjukkan bahwa model HFV memiliki ketaja
 
 Namun, pengamatan paling krusial terletak pada aplikasi \textbf{Facebook} dan \textbf{Hangout}. Terjadi fenomena tumpang-tindih klasifikasi (\textit{cross-misclassification}) yang sangat intensif di antara kedua kelas ini. Dari 59 sampel \textit{Facebook}, sebanyak 8 sampel ditebak sebagai \textit{Hangout}. Sebaliknya, dari 60 sampel \textit{Hangout}, 5 sampel justru diklasifikasikan sebagai \textit{Facebook}. 
 
-Kelemahan (\textit{blind spot}) ini memberikan landasan teori yang sangat menarik mengenai batasan klasifikasi \textit{payload-agnostic}:
+Kelemahan (\textit{blind spot}) ini memberikan landasan teori yang sangat menarik mengenai batasan klasifikasi \textit{decryption-free}:
 \begin{enumerate}
     \item \textbf{Aplikasi Multi-Modal Berbasis Web}: Facebook dan Hangout bukan aplikasi \textit{single-purpose}. Keduanya adalah platform yang mengirimkan pesan teks, gambar proaktif, dan inisiasi sesi panggilan (WebRTC) dalam satu soket yang sama. Kompleksitas fungsionalitas ini membuat matriks aliran statistik ($\beta$ dan $\gamma$) mereka sangat fluktuatif dan mirip satu sama lain.
     \item \textbf{Infrastruktur Tumpang Tindih dan Enkripsi Ganda}: Kedua layanan ini memanfaatkan protokol HTTPS/TLS yang terenkripsi ganda di atas VPN dan di-rutekan melalui arsitektur \textit{Content Delivery Network} (CDN) raksasa dengan logika penyaluran (\textit{multiplexing}) yang serupa. Pemblokiran ganda lapisan ini membuat \textit{signature} sidik jari pada lapisan \textit{payload} ($\alpha$) dari Facebook dan Hangout memudar dan kehilangan keunikan struktural dominannya.
