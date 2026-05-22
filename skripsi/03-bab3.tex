@@ -386,7 +386,7 @@ Secara formal, jika $P_{c2s}$ dan $P_{s2c}$ adalah himpunan paket pada arah kelu
 Definisi serupa berlaku untuk arah S2C ($\mathbf{Z}^{s2c}$ dan $\mathbf{I}^{s2c}$).
 
 \subsubsection{Konstruksi Vektor Fitur Statistik}
-Untuk mengubah sekuens data yang panjangnya bervariasi menjadi vektor fitur berdimensi tetap, diterapkan fungsi pemetaan statistik $\mathcal{F}: \mathbb{R}^n \to \mathbb{R}^9$. Fungsi ini menghitung 9 statistik deskriptif untuk setiap himpunan data: \textit{Count, Sum, Mean, Standard Deviation, Min, Max, Median, Skewness,} dan \textit{Kurtosis}.
+Untuk mengubah sekuens data yang panjangnya bervariasi menjadi vektor fitur berdimensi tetap, diterapkan fungsi pemetaan statistik $\mathcal{F}: \mathbb{R}^n \to \mathbb{R}^9$. Fungsi ini menghitung 9 statistik deskriptif untuk setiap himpunan data: \textit{Count, Sum, Mean, Standard Deviation, Min, Max, Median, Percentile 25 (P25), Percentile 75 (P75), Skewness,} dan \textit{Kurtosis}.
 
 Vektor fitur $\mathbf{v}_{\beta}$ kemudian dikonstruksi dengan menggabungkan (konkatenasi) hasil statistik dari keempat himpunan data tersebut, ditambah dengan statistik global \textit{flow} (Durasi, Total Paket, Total Volume). Definisi formal vektor $\mathbf{v}_{\beta}$ dinyatakan dalam Persamaan \ref{eq:beta_vector}.
 
@@ -395,7 +395,7 @@ Vektor fitur $\mathbf{v}_{\beta}$ kemudian dikonstruksi dengan menggabungkan (ko
     \mathbf{v}_{\beta} = \left[ \mathcal{F}(\mathbf{Z}^{c2s}) \oplus \mathcal{F}(\mathbf{Z}^{s2c}) \oplus \mathcal{F}(\mathbf{I}^{c2s}) \oplus \mathcal{F}(\mathbf{I}^{s2c}) \oplus \mathbf{v}_{global} \right]
 \end{myequation}
 
-Dimana $\oplus$ adalah operasi konkatenasi. Dengan 9 statistik untuk 4 himpunan data ($9 \times 4 = 36$) ditambah 3 fitur global, total dimensi vektor $\mathbf{v}_{\beta}$ adalah \textbf{39 fitur}.
+Dimana $\oplus$ adalah operasi konkatenasi. Dengan 11 statistik untuk 4 himpunan data ($11 \times 4 = 44$) ditambah 3 fitur global, total dimensi vektor $\mathbf{v}_{\beta}$ adalah \textbf{47 fitur}.
 
 Visualisasi proses ekstraksi statistik bidireksional ini dapat dilihat pada Gambar \ref{fig:beta_extraction}.
 
@@ -411,7 +411,7 @@ Visualisasi proses ekstraksi statistik bidireksional ini dapat dilihat pada Gamb
 
 Komponen $\gamma$ (Gamma) difokuskan untuk menangkap dinamika temporal atau ritme komunikasi dari sebuah aliran. Berbeda dengan komponen $\beta$ yang melihat statistik global, komponen ini membedah struktur \textit{on-off} (kirim-tunggu-kirim) yang menjadi ciri khas aplikasi interaktif seperti VoIP, \textit{messaging}, dan \textit{streaming} adaptif \citep{Lotfollahi2019, Fesl2024}.
 
-Analisis ini membagi sebuah \textit{flow} kontinu menjadi segmen-segmen diskrit yang disebut \textit{burst}, dipisahkan oleh periode diam (\textit{idle time}).
+Analisis ini membagi sebuah \textit{flow} kontinu menjadi segmen-segmen diskrit yang disebut \textit{burst}, dipisahkan oleh periode diam (\textit{idle time}). Sama halnya dengan komponen $\beta$, analisis level burst ini menerapkan pendekatan bidireksional dengan memisahkan aliran paket menjadi arah Client-to-Server (C2S) dan Server-to Client (S2C).
 
 \subsubsection{Model Matematis Segmentasi Burst}
 Kunci dari ekstraksi fitur ini adalah algoritma segmentasi yang menentukan batas antar \textit{burst}. Penelitian ini mendefinisikan \textit{threshold} waktu diam sebesar $\tau_{idle} = 1.0$ detik \citep{DraperGil2016, Razooqi2025-bo}.
@@ -454,7 +454,7 @@ Sama seperti komponen $\beta$, fungsi statistik $\mathcal{F}$ diterapkan pada ke
     \mathbf{v}_{\gamma} = \left[ m, \mathcal{F}(\mathbf{C}), \mathcal{F}(\mathbf{V}), \mathcal{F}(\mathbf{D}), \mathcal{F}(\mathbf{I}) \right]
 \end{myequation}
 
-Dimana $m$ adalah jumlah total \textit{burst}. Dengan 9 statistik untuk 4 variabel ($9 \times 4 = 36$) ditambah fitur jumlah \textit{burst} ($m$), komponen ini berkontribusi \textbf{37 fitur} pada vektor akhir \citep{kotak2025vpn, Liu2024}.
+Fungsi statistik $\mathcal{F}$ yang menghitung 9 nilai deskriptif (Count, Sum, Mean, Std, Min, Max, Median, P25, P75) diterapkan pada 4 variabel burst tersebut, menghasilkan 36 fitur. Karena perhitungan dilakukan secara bidireksional (C2S dan S2C), maka dihasilkan $36 \times 2 = 72$ fitur. Ditambah dengan 2 fitur yang mencatat total jumlah burst untuk masing-masing arah, komponen ini secara kumulatif berkontribusi \textbf{74 fitur} \citep{kotak2025vpn, Liu2024}.
 
 \subsection{Integrasi Komponen HFV dan Pembuatan Basis Data Fitur}
 \label{subsec:integrasi_hfv}
@@ -474,8 +474,8 @@ Secara formal, untuk setiap \textit{flow} $i$, didefinisikan sebuah vektor fitur
 Dimana dimensi total dari ruang fitur $\Omega$ adalah jumlahan dari dimensi masing-masing komponen:
 \begin{align*}
     \text{dim}(\Omega) &= \text{dim}(\mathbf{v}_{\alpha}) + \text{dim}(\mathbf{v}_{\beta}) + \text{dim}(\mathbf{v}_{\gamma}) \\
-    &= 128 + 39 + 37 \\
-    &= \mathbf{204} \text{ Fitur}
+    &= 128 + 47 + 74 \\
+    &= \mathbf{249} \text{ Fitur}
 \end{align*}
 
 Setiap dimensi dalam vektor $\Omega$ merepresentasikan atribut numerik yang akan menjadi input bagi model klasifikasi.
@@ -490,16 +490,7 @@ Misalkan $S_\alpha, S_\beta,$ dan $S_\gamma$ adalah himpunan identitas \textit{f
     \mathcal{D} = \{ \Omega_f \mid f \in S_\alpha \cap S_\beta \cap S_\gamma \}
 \end{myequation}
 
-Operasi ini secara implisit membuang sampel yang rusak atau kosong pada salah satu tahap ekstraksi (misalnya, \textit{flow} tanpa \textit{payload} yang dibuang oleh komponen $\alpha$). Hasil akhir dari proses integrasi ini adalah matriks fitur $\mathbf{X}_{final} \in \mathbb{R}^{M \times 204}$, dimana $M$ adalah jumlah total sampel yang valid \citep{jorgensen2023extensible}.
-
-Visualisasi konseptual dari penggabungan vektor ini ditampilkan pada Gambar \ref{fig:feature_fusion}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1.0\textwidth]{assets/pics/feature_fusion_genai1.png}
-    \caption{Konsep \textit{Feature Fusion} HFV: Penyatuan vektor fitur 1D-CNN ($\alpha$), statistik flow ($\beta$), dan statistik burst ($\gamma$) menjadi satu vektor 204-dimensi.}
-    \label{fig:feature_fusion}
-\end{figure}
+Operasi ini secara implisit membuang sampel yang rusak atau kosong pada salah satu tahap ekstraksi (misalnya, \textit{flow} tanpa \textit{payload} yang dibuang oleh komponen $\alpha$). Hasil akhir dari proses integrasi ini adalah matriks fitur $\mathbf{X}_{final} \in \mathbb{R}^{M \times 249}$, dimana $M$ adalah jumlah total sampel yang valid \citep{jorgensen2023extensible}.
 
 \subsection{Arsitektur Model Machine Learning untuk Klasifikasi}
 \label{subsec:arsitektur_model}
