@@ -17,9 +17,10 @@ Sebelum menyajikan hasil evaluasi kinerja model, bagian ini mendefinisikan spesi
 
 \begin{table}[htbp]
     \centering
+    \footnotesize
     \caption{Spesifikasi Lingkungan Eksperimen (\textit{Hardware} dan \textit{Software})}
     \label{tab:lingkungan_eksperimen}
-    \resizebox{0.85\textwidth}{!}{%
+    % \resizebox{0.85\textwidth}{!}{%
     \begin{tabular}{ll}
         \toprule
         \textbf{Komponen} & \textbf{Spesifikasi / Versi} \\
@@ -41,7 +42,7 @@ Sebelum menyajikan hasil evaluasi kinerja model, bagian ini mendefinisikan spesi
         Pemrosesan \textit{Deep Learning} & TensorFlow, Keras \\
         \bottomrule
     \end{tabular}%
-    }
+    % }
 \end{table}
 
 Mengingat tingginya beban komputasi yang dibutuhkan untuk mengekstraksi representasi \textit{deep learning} (komponen $\alpha$) dan melatih model \textit{machine learning} pada belasan ribu observasi, eksperimen dalam penelitian ini dieksekusi menggunakan layanan komputasi awan Google Colab Pro. Akses terhadap \textit{Graphics Processing Unit} (GPU) dimanfaatkan untuk mempercepat komputasi matriks. Rincian spesifikasi lingkungan eksperimen disajikan pada Tabel \ref{tab:lingkungan_eksperimen}.
@@ -86,9 +87,10 @@ Untuk menjamin integritas evaluasi, penelitian ini mengimplementasikan pemetaan 
 
 \begin{table}[H]
     \centering
+    \footnotesize
     \caption{Tabel Komparasi Performa Algoritma Klasifikasi (dalam Persen)}
     \label{tab:komparasi_model}
-    \resizebox{0.95\textwidth}{!}{%
+    %\resizebox{0.95\textwidth}{!}{%
     \begin{tabular}{l cccc}
         \toprule
         \textbf{Model Klasifikasi} & \textbf{Akurasi} & \textbf{Presisi} & \textbf{Recall} & \textbf{F1-Macro} \\
@@ -118,7 +120,7 @@ Untuk menjamin integritas evaluasi, penelitian ini mengimplementasikan pemetaan 
         \textbf{Ensemble Soft Voting (RF+XGB)} & \textbf{93.70} & \textbf{91.96} & \textbf{91.43} & \textbf{91.62} \\
         \bottomrule
     \end{tabular}%
-    }
+    %}
 \end{table}
 
 % Sisipkan visualisasinya di sini
@@ -152,9 +154,10 @@ Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta
 
 \begin{table}[htbp]
 \centering
+\footnotesize
 \caption{Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta konfigurasi terbaik yang berhasil diidentifikasi untuk masing-masing algoritma dasar.}
 \label{tab:hyperparameter_grid}
-\resizebox{\textwidth}{!}{%
+% \resizebox{\textwidth}{!}{%
 \begin{tabular}{llcccc}
 \toprule
 \multirow{2}{*}{\textbf{Algoritma}} & \multirow{2}{*}{\textbf{Hiperparameter}} & \multirow{2}{*}{\textbf{Ruang Pencarian}} & \multicolumn{3}{c}{\textbf{Konfigurasi Terbaik}} \\ \cmidrule(lr){4-6} 
@@ -168,18 +171,18 @@ Ruang pencarian (\textit{search space}) hiperparameter yang dieksplorasi beserta
  & max\_depth & \{3, 6, 10\} & 10 & 10 & 10 \\
  & subsample & \{0.8, 1.0\} & 0.8 & 0.8 & 0.8 \\ \bottomrule
 \end{tabular}%
-}
+% }
 \\ \vspace{0.2cm}
-\footnotesize{\textit{Catatan: Skenario 1 (Deteksi VPN), Skenario 2 (Kategori VPN), Skenario 3 (Aplikasi Spesifik).}}
 \end{table}
 
 Untuk memvalidasi efektivitas dari proses pencarian parameter ini, model \textit{Ensemble Soft Voting} dilatih ulang menggunakan parameter terbaik yang ditemukan untuk masing-masing skenario (\textit{Tuned Model}), kemudian kinerjanya dibandingkan secara langsung dengan model yang menggunakan parameter bawaan (\textit{Default/Base Model}). Evaluasi perbandingan ini diukur menggunakan metrik \textit{F1-Macro} pada himpunan data uji (\textit{test set}) terisolasi. Hasil perbandingan kinerja tersebut dirangkum pada Tabel \ref{tab:hasil_tuning_skenario}.
 
 \begin{table}[htbp]
     \centering
-    \caption{Perbandingan Kinerja F1-Macro Model \textit{Default} vs \textit{Tuned} pada Tiga Skenario}
+    \footnotesize
+    \caption{Perbandingan kinerja F1-Macro model \textit{Default} vs \textit{Tuned} pada tiga skenario.}
     \label{tab:hasil_tuning_skenario}
-    \resizebox{0.9\textwidth}{!}{%
+    % \resizebox{0.9\textwidth}{!}{%
     \begin{tabular}{l ccc}
         \toprule
         \textbf{Skenario Pengujian} & \textbf{\textit{Default/Base} (\%)} & \textbf{\textit{Tuned/Optimized} (\%)} & \textbf{Selisih Kinerja (\%)} \\
@@ -189,7 +192,7 @@ Untuk memvalidasi efektivitas dari proses pencarian parameter ini, model \textit
         Skenario 3 (Aplikasi Spesifik) & 91.32 & 91.11 & -0.21 \\
         \bottomrule
     \end{tabular}%
-    }
+    % }
 \end{table}
 
 Berdasarkan Tabel \ref{tab:hasil_tuning_skenario}, ditemukan fenomena empiris yang sangat menarik. Implementasi parameter hasil optimasi (\textit{tuning}) tidak memberikan peningkatan performa yang revolusioner. Pada Skenario 2 (Kategori VPN), model berhasil memperoleh sedikit peningkatan marjinal sebesar 0.78\%. Namun, pada Skenario 1 dan Skenario 3, modifikasi hiperparameter justru memicu penurunan kinerja yang sangat kecil (masing-masing sebesar -0.03\% dan -0.21\%).
@@ -212,7 +215,7 @@ Berdasarkan temuan ini, dan sejalan dengan prinsip \textit{Occam's Razor}—yang
 
 \begin{table}[htbp]
     \centering
-    \caption{Hasil \textit{Ablation Study}: Kinerja Model Berdasarkan Kombinasi Komponen Fitur (dalam Persen)}
+    \caption{Hasil \textit{ablation study}: kinerja model berdasarkan kombinasi komponen fitur (dalam persen)}
     \label{tab:ablation_study}
     \resizebox{1\textwidth}{!}{%
     \begin{tabular}{l ccc ccc ccc}
@@ -277,6 +280,7 @@ Analisis pertama meninjau bagaimana model memprioritaskan ketiga pilar fitur ($\
 
 \begin{table}[htbp]
     \centering
+    \footnotesize
     \caption{Evolusi Tingkat Kepentingan Komponen Fitur pada Tiga Skenario Pengujian}
     \label{tab:proporsi_komponen_all}
     \resizebox{1\textwidth}{!}{%
@@ -389,7 +393,8 @@ Temuan paling krusial dan mendalam terdapat pada Skenario 3 (Aplikasi Spesifik),
 
 \begin{table}[htbp]
     \centering
-    \caption{Analisis Pasangan Fitur Ekstrem pada Skenario 3 (Aplikasi Spesifik)}
+    \footnotesize
+    \caption{Analisis pasangan fitur ekstrem pada skenario 3 (aplikasi spesifik).}
     \label{tab:pasangan_korelasi}
     \resizebox{0.95\textwidth}{!}{%
     \begin{tabular}{llcc}
@@ -436,7 +441,8 @@ Pada Skenario 2, model ditugaskan untuk mengelompokkan lalu lintas VPN ke dalam 
 
 \begin{table}[htbp]
     \centering
-    \caption{Laporan Klasifikasi Terperinci - Skenario 2 (Kategori VPN)}
+    \footnotesize
+    \caption{Laporan klasifikasi terperinci - skenario 2 (kategori VPN).}
     \label{tab:class_report_kategori}
     \resizebox{0.85\textwidth}{!}{%
     \begin{tabular}{l cccc}
@@ -472,11 +478,10 @@ Anomali lintas-kelas ini sangat beralasan secara teknis jaringan. Lalu lintas \t
 
 \subsection{Analisis Kesalahan pada Klasifikasi Aplikasi Spesifik VPN}
 
-Tingkat kesulitan berlipat ganda pada Skenario 3, di mana model tidak lagi mengelompokkan berdasarkan sifat generik lalu lintas, melainkan harus mengenali aplikasi mana yang sedang berkomunikasi (\textit{Application Awareness}). Pemetaan kesalahan (\textit{false-positive}/\textit{false-negative}) divisualisasikan pada Gambar \ref{fig:cm_aplikasi} dan rincian performanya disajikan pada Tabel \ref{tab:class_report_aplikasi}.
-
 \begin{table}[htbp]
     \centering
-    \caption{Laporan Klasifikasi Terperinci - Skenario 3 (Aplikasi Spesifik VPN)}
+    \footnotesize
+    \caption{Laporan klasifikasi terperinci - skenario 3 (aplikasi spesifik VPN)}
     \label{tab:class_report_aplikasi}
     \resizebox{0.85\textwidth}{!}{%
     \begin{tabular}{l cccc}
@@ -503,6 +508,8 @@ Tingkat kesulitan berlipat ganda pada Skenario 3, di mana model tidak lagi menge
     \caption{\textit{Confusion Matrix} identifikasi aplikasi spesifik (\textit{fine-grained}) di dalam lalu lintas VPN.}
     \label{fig:cm_aplikasi}
 \end{figure}
+
+Tingkat kesulitan berlipat ganda pada Skenario 3, di mana model tidak lagi mengelompokkan berdasarkan sifat generik lalu lintas, melainkan harus mengenali aplikasi mana yang sedang berkomunikasi (\textit{Application Awareness}). Pemetaan kesalahan (\textit{false-positive}/\textit{false-negative}) divisualisasikan pada Gambar \ref{fig:cm_aplikasi} dan rincian performanya disajikan pada Tabel \ref{tab:class_report_aplikasi}.
 
 Distribusi \textit{Confusion Matrix} menunjukkan bahwa model HFV memiliki ketajaman diskriminasi yang sangat tinggi pada aplikasi dengan protokol yang khas. \textbf{Skype} (249 tebakan benar dari 254), \textbf{BitTorrent} (62 dari 66), dan \textbf{YouTube} (26 dari 27) berhasil diisolasi secara hampir sempurna. Terdapat sedikit percampuran di mana 4 sampel \textit{BitTorrent} terklasifikasi sebagai \textit{Skype}; fenomena ini kemungkinan disebabkan oleh sifat \textit{Peer-to-Peer} (P2P) yang terkadang juga dimanfaatkan oleh arsitektur \textit{Skype} kuno untuk menembus \textit{firewall} (UDP \textit{hole punching}), sehingga statistik makro keduanya menjadi tumpang tindih.
 

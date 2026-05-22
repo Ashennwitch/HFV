@@ -43,6 +43,38 @@ Fitur-fitur utama yang diamati dalam ETA dapat dikategorikan sebagai berikut:
 Dengan memanfaatkan kombinasi fitur-fitur ini, ETA memungkinkan klasifikasi lalu lintas yang \textit{robust} tanpa melanggar privasi yang diberikan oleh enkripsi.
 
 %-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
+%-----------------------------------------------------------------------------%
+\section{Virtual Private Network (VPN) dan Protokol OpenVPN}
+\label{sec:bab2-vpn-openvpn}
+%-----------------------------------------------------------------------------%
+
+Virtual Private Network (VPN) dirancang untuk memenuhi kebutuhan mendasar akan komunikasi data yang aman, privat, dan terautentikasi melintasi infrastruktur jaringan luas yang pada dasarnya bersifat tidak terlindungi \citep{crist2015mastering}. VPN bekerja dengan cara memperluas jaringan privat melintasi jaringan publik, memungkinkan pengguna mengirim dan menerima data seolah-olah perangkat mereka terhubung langsung ke jaringan privat tersebut melalui pembentukan jalur virtual terenkripsi atau \textit{tunneling} \citep{DraperGil2016}. Selain digunakan untuk mengamankan data korporasi, teknologi ini telah menjadi solusi populer bagi pengguna individu untuk menjaga privasi online, menghindari pengawasan pihak ketiga, serta menembus pembatasan geografis atau sensor konten \citep{DraperGil2016}.
+
+\subsection{Mekanisme Kerja dan Saluran Protokol OpenVPN}
+OpenVPN adalah salah satu protokol dan perangkat lunak VPN bersumber terbuka (\textit{open-source}) yang paling andal dan banyak diimplementasikan dalam arsitektur jaringan modern \citep{crist2015mastering}. Untuk menyediakan mekanisme keamanan tingkat tinggi, OpenVPN sangat bergantung pada pustaka kriptografi pihak ketiga seperti OpenSSL atau PolarSSL dalam mengeksekusi operasi enkripsi dan penandatanganan paket data \citep{crist2015mastering}. Secara operasional, arsitektur keamanan OpenVPN terbagi menjadi dua saluran utama yang bekerja secara komplementer untuk melindungi data:
+
+\begin{itemize}
+    \item \textit{Control Channel} (Saluran Kendali): Saluran ini berfungsi untuk melakukan proses negosiasi parameter keamanan, pertukaran kunci enkripsi (\textit{key exchange}), serta autentikasi awal antara klien dan server dengan memanfaatkan kerangka kerja \textit{Secure Socket Layer} (SSL) atau \textit{Transport Layer Security} (TLS) \citep{crist2015mastering, stallings2006cryptography}.
+    \item \textit{Data Channel} (Saluran Data): Setelah jalur TLS berhasil dibangun secara aman pada \textit{control channel}, seluruh lalu lintas data aplikasi aktual pengguna akan dilewatkan melalui \textit{data channel} \citep{crist2015mastering}. Saluran data ini menjamin kerahasiaan (\textit{confidentiality}) melalui algoritma enkripsi simetris dan memastikan integritas pesan (\textit{message integrity}) menggunakan kode autentikasi pesan (\textit{Message Authentication Code} / MAC) \citep{stallings2006cryptography}.
+\end{itemize}
+
+\subsection{Lapisan Antarmuka Virtual (TUN dan TAP)}
+Keunggulan fleksibilitas OpenVPN terletak pada kemampuannya beroperasi menggunakan penggerak virtual adapter (\textit{virtual network interface device drivers}) tingkat kernel, yaitu antarmuka TUN (\textit{network tunnel}) dan TAP (\textit{network tap}) \citep{crist2015mastering}. Kedua antarmuka virtual ini memiliki perbedaan fundamental pada lapisan operasional jaringan:
+
+\begin{itemize}
+    \item Antarmuka TAP: Beroperasi pada Lapisan Data Link (Layer 2 OSI) yang melewatkan paket bingkai Ethernet mentah (\textit{raw Ethernet frames}) dan mendukung penuh enkapsulasi jembatan jaringan (\textit{network bridging}) \citep{crist2015mastering}.
+    \item Antarmuka TUN: Beroperasi pada Lapisan Network (Layer 3 OSI) yang bekerja secara spesifik untuk merutekan paket-paket IP standar jaringan \citep{crist2015mastering}.
+\end{itemize}
+
+Dalam implementasi model arsitektur klien/server standar, OpenVPN mengonfigurasi perangkat TUN untuk menerima peruteran seluruh lalu lintas data IP dari host klien ke dalam terowongan virtual privat \citep{crist2015mastering}. Server kemudian mengalokasikan alamat IP privat dinamis dari pangkalan data subnet kepada klien yang berhasil terautentikasi \citep{crist2015mastering}. Dataset ISCX 2016 yang menjadi subjek analisis utama dalam eksperimen penelitian ini dikumpulkan seluruhnya menggunakan mode antarmuka virtual TUN \citep{DraperGil2016}.
+
+\subsection{Struktur Enkapsulasi dan Metadata OpenVPN}
+Proses pengamanan data pada OpenVPN melibatkan mekanisme enkapsulasi berlapis yang secara signifikan mengubah anatomi struktural paket sebelum ditransmisikan melintasi jaringan internet fisik publik \citep{crist2015mastering}. Pada lalu lintas jaringan non-VPN standar, perangkat pengamat jaringan luar dapat dengan mudah memeriksa \textit{header} paket asli untuk membaca alamat IP tujuan akhir, tipe protokol, serta informasi \textit{port} aplikasi yang digunakan (seperti TCP port 443 untuk komunikasi HTTPS). 
+
+Namun, ketika mekanisme enkapsulasi terowongan OpenVPN diterapkan, paket IP asli milik aplikasi—yang mencakup \textit{inner header} (alamat IP privat asal dan tujuan, serta port aplikasi internal asli) beserta data aplikasinya (\textit{payload})—akan dienkripsi secara penuh dan dibungkus di dalam muatan data aman VPN \citep{crist2015mastering}. Akibatnya, elemen metadata publik yang tersisa pada \textit{outer header} (pembungkus luar paket) dan dapat diamati secara terbuka oleh perangkat perantara (\textit{intermediate routers}) hanyalah alamat IP fisik klien terluar, alamat IP publik dari Server VPN, serta nomor port transportasi luar yang seragam \citep{crist2015mastering}. Umumnya, pembungkus luar ini menggunakan UDP port 1194 sebagai standar default OpenVPN atau TCP port 443 untuk menyamar sebagai lalu lintas web TLS standar \citep{crist2015mastering}. Penyembunyian identitas port aplikasi inilah yang melandasi urgensi penggunaan algoritma pembelajaran mesin untuk mengenali karakteristik perilaku statistik aliran data yang tersisa.
+%-----------------------------------------------------------------------------%
 \section{Klasifikasi Berbasis Flow}
 \label{sec:bab2-flow-based}
 %-----------------------------------------------------------------------------%

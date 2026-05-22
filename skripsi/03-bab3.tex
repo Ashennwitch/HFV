@@ -39,6 +39,62 @@ Tabel \ref{tab:dataset_distribution} menunjukkan distribusi kelas pada ketiga tu
 
 Dengan tiga tingkat klasifikasi ini, dataset ISCXVPN2016 menyediakan metode evaluasi yang komprehensif dan representatif untuk penelitian network traffic classification, terutama dalam konteks trafik terenkripsi yang semakin berkembang.
 
+\subsection{Prosedur Pengumpulan Data dan Observasi Antarmuka}
+\label{sec:bab3-prosedur-pengumpulan}
+
+Untuk memenuhi validitas metodologi eksperimen, pemahaman mendalam mengenai prosedur pengumpulan data (\textit{data collecting}) dari dataset asli sangat krusial. Merujuk pada skema eksperimen yang dirancang oleh pembuat dataset \citep{draper2016characterization}, perekaman lalu lintas dilakukan secara langsung pada sisi \textit{host} klien menggunakan utilitas penangkap paket jaringan (\textit{packet capture}). Skenario pengumpulan data dibagi menjadi dua kondisi lingkungan utama:
+\begin{enumerate}
+    \item \textbf{Pengumpulan Trafik Non-VPN:} Aplikasi dieksekusi secara standar di atas sistem operasi \textit{host} klien. Paket data mengalir langsung dari kartu antarmuka jaringan fisik (\textit{Physical Network Interface Card}) menuju jaringan publik luar melalui perutean lokal standar kampus \citep{draper2016characterization}.
+    \item \textbf{Pengumpulan Trafik VPN:} Pengguna mengaktifkan koneksi terowongan terenkripsi menggunakan protokol OpenVPN sebelum menjalankan aplikasi \citep{draper2016characterization}. OpenVPN bertindak sebagai penyedia jalur virtual aman yang membelokkan seluruh perutean lalu lintas biner dari aplikasi \citep{crist2015mastering}.
+\end{enumerate}
+
+Berdasarkan investigasi empiris yang dilakukan  terhadap file tangkapan paket mentah (\textit{raw pcap}) dalam dataset ISCX 2016, ditemukan sebuah karakteristik penting mengenai lokasi titik observasi penangkapan data. Lalu lintas kategori VPN dalam dataset ini tidak direkam pada kabel jaringan luar (sisi publik di luar komputer), melainkan ditangkap langsung pada tingkat antarmuka virtual internal sistem operasi, yaitu \textit{driver adapter} \texttt{tun0} OpenVPN. 
+
+Fakta arsitektur perekaman ini dibuktikan melalui analisis silang (\textit{cross-examination}) terhadap dua sampel berkas \textit{instant messaging} dari repositori dataset, yaitu berkas \texttt{aim\_chat\_3a.pcap} (kondisi Non-VPN) dan berkas \texttt{vpn\_aim\_chat1a.pcap} (kondisi VPN). Hasil visualisasi pembedahan struktur paket menggunakan perangkat lunak Wireshark ditunjukkan pada Gambar \ref{fig:perbandingan_aim_wireshark}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{assets/pics/wireshark_ip_compare.png}
+    \caption{Perbandingan visibilitas alamat IP pada antarmuka penangkapan data. Bagian atas menunjukkan kondisi Non-VPN (antarmuka fisik dengan \textit{Source IP} 131.202.240.87), sedangkan bagian bawah menunjukkan kondisi VPN yang direkam di dalam \texttt{tun0} (pergeseran \textit{Source IP} menjadi 10.8.8.178).}
+    \label{fig:perbandingan_aim_wireshark}
+\end{figure}
+
+Analisis struktural lebih lanjut menggunakan pustaka inspeksi (\texttt{scapy}) paket memperlihatkan anomali parameter teknis yang sangat kontras antara kedua kondisi perekaman tersebut. Perbandingan karakteristik struktural \textit{header} dan metadata antara berkas lalu lintas Non-VPN dan VPN dirangkum pada Tabel \ref{tab:komparasi_pcap_iscx}.
+
+\begin{table}[h!]
+\centering
+\caption{Tabel Komparasi Karakteristik Parameter Berkas PCAP pada Dataset ISCX 2016}
+\label{tab:komparasi_pcap_iscx}
+\begin{tabular}{|l|p{5.5cm}|p{5.5cm}|}
+\hline
+\textbf{Atribut Jaringan} & \textbf{Trafik Standar (Non-VPN)} & \textbf{Trafik VPN (Virtual Interface \texttt{tun0})} \\ \hline
+Nama Berkas Contoh & \texttt{aim\_chat\_3a.pcap} & \texttt{vpn\_aim\_chat1a.pcap} \\ \hline
+Alamat IP Sumber & Alamat IP Publik asli komputer \textit{host} (Blok Universitas: \texttt{131.202.240.87}) & Alamat IP Privat Virtual internal terowongan OpenVPN (\texttt{10.8.8.178}) \\ \hline
+Alamat IP Tujuan & Alamat IP Publik Server Aplikasi asli (Contoh Server AIM: \texttt{205.188.12.91}) & Alamat IP Publik Server Aplikasi asli (Contoh Server AIM: \texttt{205.188.12.91}) \\ \hline
+Port Transportasi & \textit{Port} asli milik layanan aplikasi (Contoh: TCP port 443 / port khusus) & \textit{Port} asli milik layanan aplikasi (Contoh: TCP port 443 / port khusus) \\ \hline
+Visibilitas Konten & Terenkripsi pada tingkat lapisan aplikasi melalui protokol TLS/HTTPS & Terenkripsi pada tingkat lapisan aplikasi (TLS/HTTPS) dan mengalami pembatasan MTU internal VPN \\ \hline
+\end{tabular}
+\end{table}
+
+Melalui representasi data pada Tabel \ref{tab:komparasi_pcap_iscx}, diperoleh sebuah \textit{insight} arsitektural: karena penangkapan data dilakukan dari dalam antarmuka virtual \texttt{tun0}, elemen \textit{header} asli secara administratif masih dapat terbaca oleh \textit{sniffer} lokal sebelum dibungkus sepenuhnya menjadi paket UDP port 1194 oleh subsistem enkapsulasi luar OpenVPN. 
+
+Meskipun \textit{port} aplikasi masih terlihat pada antarmuka \texttt{tun0}, metode \textit{Deep Packet Inspection} (DPI) konvensional maupun aturan berbasis port tetap dipastikan gagal melakukan klasifikasi. Hal ini terjadi karena selain \textit{payload} yang tersandi acak oleh TLS, intervensi mesin VPN merusak karakteristik fisik lalu lintas data itu sendiri. Pembuktian visual mengenai distorsi fisik ini dapat diobservasi melalui fitur \textit{Packet Lengths} pada Gambar \ref{fig:perbandingan_stats_wireshark}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{assets/pics/wireshark_stats_compare.png}
+    \caption{Perbandingan statistik sebaran ukuran paket dan \textit{burst rate} antara trafik Non-VPN (atas) dan VPN (bawah). Terlihat jelas terjadinya distorsi ukuran dan ritme aliran data akibat intervensi mesin OpenVPN.}
+    \label{fig:perbandingan_stats_wireshark}
+\end{figure}
+
+Merujuk pada Gambar \ref{fig:perbandingan_stats_wireshark}, meskipun aplikasi yang dieksekusi sama persis (\textit{AIM Chat}), ketika lalu lintas dialirkan melalui saluran VPN, terjadi pergeseran \textit{Behavioral Fingerprint} (sidik jari perilaku) yang ekstrem:
+\begin{enumerate}
+    \item \textbf{Distorsi Ukuran Paket:} Rata-rata ukuran paket (\textit{average packet length}) anjlok secara drastis (dari sekitar 600 \textit{bytes} menjadi sekitar 136 \textit{bytes}). Mayoritas paket terfragmentasi dan menumpuk pada rentang ukuran kecil akibat penyesuaian \textit{Maximum Transmission Unit} (MTU) internal OpenVPN.
+    \item \textbf{Distorsi \textit{Burst Rate}:} Laju semburan data sesaat (\textit{burst rate}) juga mengalami perubahan ritme yang signifikan. Proses enkripsi kriptografis dan antrean (\textit{queueing buffer}) di latar belakang VPN telah mengubah metrik \textit{Inter-Arrival Time} (IAT) alami aplikasi.
+\end{enumerate}
+
+Pergeseran drastis pada ukuran dan ritme \textit{burst} inilah yang menjadi landasan fundamental mengapa pendekatan \textit{Machine Learning} mutlak diperlukan. Model \textit{Hybrid Flow Vector} tidak membaca teks identitas pada \textit{header}, melainkan bertugas mengekstrak pola sebaran statistik ini (Fitur Beta dan Gamma) untuk membedakan aplikasi—sebuah tugas kognisi pola (\textit{pattern recognition}) berdimensi tinggi yang tidak dapat dipecahkan oleh aturan heuristik biner statis.
+
 \subsection{Pra-Pemrosesan Dataset ISCX 2016}
 \label{subsec:prapemrosesan}
 
@@ -51,8 +107,7 @@ Langkah pertama adalah mengubah file \texttt{.pcap} mentah menjadi \textit{bidir
 
 Untuk tugas ini, \textit{tool} SplitCap digunakan. SplitCap dipilih karena merupakan \textit{tool} khusus yang teroptimasi (ditulis dalam C/C++) untuk menangani file \texttt{.pcap} besar secara efisien dan akurat dalam mengelola sesi, yang esensial untuk mereproduksi metodologi penelitian.
 
-Untuk mengotomatisasi pemrosesan pada seluruh dataset, sebuah skrip Python digunakan untuk memanggil SplitCap pada setiap file \texttt{.pcap}, untuk melakukan command \verb|mono ./SplitCap.exe -r [pcap_file_path.pcap] -o [output_dir] -s session -p 500|
-. Perlu dicatat penambahan argumen \texttt{-p 500} yang penting untuk membatasi sesi paralel dan menghindari galat ``Too many open files''.
+Untuk mengotomatisasi pemrosesan pada seluruh dataset, sebuah skrip Python digunakan untuk memanggil SplitCap pada setiap file \texttt{.pcap}, untuk melakukan command \texttt{mono ./SplitCap.exe -r [pcap\_file\_path.pcap] -o [output\_dir] -s session -p 500}. Perlu dicatat penambahan argumen \texttt{-p 500} yang penting untuk membatasi sesi paralel dan menghindari galat ``Too many open files''.
 
 \subsubsection{Pembersihan Awal (Rule A \& B)}
 Setelah seluruh data mentah \texttt{.pcap} dikonversi menjadi \textit{bidirectional flows} (dengan total estimasi awal $\sim$310.000 \textit{flow}), diterapkan proses pembersihan dua tahap yang mengadopsi metodologi dari \citep{baek2023preprocessing}. Tahap ini bertujuan untuk mengeliminasi trafik latar belakang (\textit{background traffic}) dan sesi yang rusak.
@@ -101,7 +156,7 @@ Tahap akhir adalah penyaringan tambahan yang diimplementasikan oleh \citep{park2
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{assets/pics/all_cleaning_process1.png}
+    \includegraphics[width=0.75\textwidth]{assets/pics/all_cleaning_process1.png}
     \caption{Ilustrasi alir pra-pemrosesan data, menunjukkan reduksi dari data mentah menjadi dataset final melalui Rule A, B, dan C.}
     \label{fig:preprocessing_funnel}
 \end{figure}
@@ -176,6 +231,13 @@ Setelah ketiga langkah pra-pemrosesan ini selesai, dataset final yang bersih ber
 \label{subsec:skema_klasifikasi}
 %-----------------------------------------------------------------------------%
 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.85\textwidth]{assets/pics/distribusi_kategori.png} % Sesuaikan path folder gambar Anda
+    \caption{Distribusi jumlah sampel untuk setiap kategori layanan VPN dan NonVPN pada dataset HFV pasca-integrasi.}
+    \label{fig:distribusi_kategori}
+\end{figure}
+
 Berbeda dengan pendekatan yang memisahkan dataset secara fisik sejak awal ekstraksi, penelitian ini menggunakan pendekatan \textit{Single Source of Truth} berupa satu dataset gabungan utuh (\texttt{HFV\_dataset.csv}). Dataset ini memuat representasi fitur hibrida lengkap $\Omega = (\alpha \oplus \beta \oplus \gamma)$ yang berhasil diekstrak dari proses \textit{merging}. Pendekatan ini dipilih secara terencana untuk mencegah kebocoran data (\textit{data leakage}) dan memastikan konsistensi sampel pada setiap skenario pengujian.
 
 Untuk mengevaluasi kinerja \textit{Hybrid Flow Vector} (HFV) pada berbagai tingkat granularitas, eksperimen dirancang menggunakan metode klasifikasi bertingkat (\textit{hierarchical classification}) yang disimulasikan melalui pemfilteran tingkat perangkat lunak (\textit{software-level subsetting}). Alur klasifikasi dieksekusi melalui tiga skenario pengujian utama:
@@ -187,22 +249,16 @@ Untuk mengevaluasi kinerja \textit{Hybrid Flow Vector} (HFV) pada berbagai tingk
     \item \textbf{Skenario 2: Klasifikasi Kategori (Karakterisasi VPN)} \\
     Mensimulasikan cara kerja \textit{Intrusion Detection System} (IDS) di lingkungan produksi nyata, data yang diproses pada tahap ini direduksi hanya pada \textit{flow} yang telah diklasifikasikan sebagai lalu lintas VPN. Pemfilteran dilakukan untuk mengisolasi 2.751 sampel VPN tersebut. Model kemudian dilatih untuk mengidentifikasi enam kategori layanan (\textit{VoIP, File Transfer, Chat, Email, Streaming,} dan \textit{P2P}). Visualisasi sebaran kelas untuk skenario ini dapat dilihat pada Gambar \ref{fig:distribusi_kategori}.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.85\textwidth]{assets/pics/distribusi_kategori.png} % Sesuaikan path folder gambar Anda
-    \caption{Distribusi jumlah sampel untuk setiap kategori layanan VPN dan NonVPN pada dataset HFV pasca-integrasi.}
-    \label{fig:distribusi_kategori}
-\end{figure}
-
 \begin{table}[htbp]
     \centering
+    \footnotesize
     \caption{Distribusi Sampel \textit{Flows} PCAP Awal (\textit{Pre-Merge})}
     \label{tab:distribusi_premerge}
     \captionsetup{font=small}
     \setlength{\tabcolsep}{2.5pt}
     \renewcommand{\arraystretch}{1.05}
-    \fontsize{11pt}{13pt}\selectfont
-    \resizebox{0.68\textwidth}{!}{%
+    %\fontsize{9pt}{13pt}\selectfont
+    %\resizebox{0.68\textwidth}{!}{%
     \begin{tabular}{@{}llrrr@{}}
         \toprule
         \textbf{No} & \textbf{Aplikasi} & \textbf{VPN} & \textbf{NonVPN} & \textbf{Total} \\
@@ -227,7 +283,7 @@ Untuk mengevaluasi kinerja \textit{Hybrid Flow Vector} (HFV) pada berbagai tingk
         \multicolumn{2}{r}{\textbf{Total Keseluruhan}} & \textbf{2.874} & \textbf{10.613} & \textbf{13.487} \\
         \bottomrule
     \end{tabular}%
-    }
+    %}
 \end{table}
 
     \item \textbf{Skenario 3: Klasifikasi Aplikasi Spesifik di Dalam VPN} \\
