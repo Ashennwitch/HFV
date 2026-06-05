@@ -47,6 +47,11 @@ Sebelum menyajikan hasil evaluasi kinerja model, bagian ini mendefinisikan spesi
 
 Mengingat tingginya beban komputasi yang dibutuhkan untuk mengekstraksi representasi \textit{deep learning} (komponen $\alpha$) dan melatih model \textit{machine learning} pada belasan ribu observasi, eksperimen dalam penelitian ini dieksekusi menggunakan layanan komputasi awan Google Colab Pro. Akses terhadap \textit{Graphics Processing Unit} (GPU) dimanfaatkan untuk mempercepat komputasi matriks. Rincian spesifikasi lingkungan eksperimen disajikan pada Tabel \ref{tab:lingkungan_eksperimen}.
 
+\subsection{Prosedur Pelatihan, Seleksi Fitur, dan Penyetelan Hiperparameter}
+Selama fase eksperimen, proses seleksi fitur (\textit{Feature Selection}) tidak dilakukan secara terpisah melalui tahapan prapemrosesan eksternal (seperti \textit{Principal Component Analysis} / PCA). Evaluasi urgensi setiap dimensi vektor diserahkan sepenuhnya pada mekanisme bawaan (\textit{built-in feature selection}) yang dimiliki oleh algoritma berbasis pohon (\textit{Tree-based models}). Pada saat pembangunan simpul keputusan (\textit{node splitting}), Random Forest dan XGBoost secara internal menyeleksi fitur yang mampu memberikan \textit{Information Gain} tertinggi atau penurunan \textit{Gini Impurity} maksimal pada setiap iterasi pembelahan cabang.
+
+Untuk memastikan kekokohan hiperparameter model dan menghindari \textit{overfitting}, optimasi dilakukan menggunakan prosedur \textit{RandomizedSearchCV}. Pada pencarian hiperparameter ini, ruang kombinasi disetel dengan jumlah iterasi acak sebanyak 10 (\texttt{n\_iter=10}) dan divalidasi menggunakan teknik silang 3-lipatan (\texttt{cv=3}). Dengan konfigurasi ini, sistem mengevaluasi 10 kombinasi hiperparameter yang berbeda secara acak, di mana setiap kombinasi dilatih dan dievaluasi sebanyak 3 kali pada lipatan data yang berbeda. Prosedur ini menghasilkan total 30 konfigurasi pelatihan komprehensif untuk setiap kandidat algoritma sebelum model final dengan performa terbaik (berdasarkan metrik \textit{F1-Score}) ditetapkan.
+
 \subsection{Skenario Klasifikasi Bertingkat}
 
 Dataset yang dieksploitasi dalam bab ini adalah dataset fitur utuh (\texttt{HFV\_dataset.csv}) yang merupakan hasil fusi \textit{inner join} dari tiga representasi fitur $\Omega = (\alpha \oplus \beta \oplus \gamma)$. Evaluasi kinerja \textit{classifier} dirancang secara hierarkis (bertingkat) ke dalam tiga skenario utama untuk mensimulasikan sistem deteksi dunia nyata:
@@ -345,9 +350,36 @@ Pada Skenario 2 (Gambar \ref{fig:fi_bar_kategori}), fitur abstrak dari komponen 
     \label{fig:fi_bar_aplikasi}
 \end{figure}
 
-Puncak dari evolusi atensi model terlihat pada Gambar \ref{fig:fi_bar_aplikasi}. Daftar 20 fitur teratas hampir sepenuhnya dikuasai oleh fitur Alpha, dengan \texttt{alpha\_pp\_92} memiliki skor kepentingan yang sangat masif (~0.179). 
+Puncak dari evolusi atensi model terlihat pada Gambar \ref{fig:fi_bar_aplikasi}. Daftar 20 fitur teratas hampir sepenuhnya dikuasai oleh komponen abstrak Alpha, dengan \texttt{alpha\_pp\_92} memiliki skor kepentingan yang sangat masif ($\sim$0.179). 
 
-Satu-satunya fitur non-Alpha yang bertahan di 15 besar hanyalah \texttt{c2s\_size\_max} (peringkat 15). Temuan ini mengonfirmasi bahwa untuk membedakan aplikasi yang sangat mirip, model tidak lagi melihat "berapa besar" atau "berapa lama" aliran data tersebut (statistik), melainkan melihat "bagaimana struktur" data tersebut dibentuk di level \textit{byte} (pola $\alpha$). Ini memvalidasi urgensi penggunaan \textit{Deep Learning} dalam arsitektur hibrida untuk menyelesaikan masalah klasifikasi modern yang kompleks.
+Satu-satunya fitur non-Alpha yang bertahan di 15 besar hanyalah \texttt{c2s\_size\_max} (peringkat 15). Temuan ini mengonfirmasi bahwa untuk membedakan aplikasi yang secara fungsional sangat mirip, model tidak lagi mengandalkan "berapa besar" atau "berapa lama" aliran data tersebut (statistik), melainkan berfokus pada "bagaimana struktur" data tersebut dibentuk di level \textit{byte} (pola $\alpha$). 
+
+Meskipun temuan di atas secara jelas menyoroti peran komponen \textit{Deep Learning}, dominasi absolut dari fitur $\alpha$ pada grafik \textit{Feature Importance} perlu diinterpretasikan secara hati-hati secara akademis. Dalam algoritma berbasis pohon (\textit{Tree-based models}) seperti Random Forest dan XGBoost, mekanisme pemisahan simpul (\textit{node splitting}) memiliki kecenderungan matematis untuk memberikan bobot kepentingan yang jauh lebih besar pada fitur yang memiliki kardinalitas tinggi (fitur kontinu dengan jumlah nilai unik yang masif) dibandingkan dengan fitur diskrit yang variasi nilainya terbatas. Mengingat set fitur $\alpha$ merupakan 128 dimensi vektor probabilitas riil keluaran dari jaringan saraf tiruan (1D-CNN) yang bersifat sangat kontinu, kemunculan dominasi $\alpha$ secara teknis turut diamplifikasi oleh fenomena bias kardinalitas ini.
+
+Meskipun demikian, keandalan dan validitas kontribusi fitur $\alpha$ dipastikan bukan semata-mata ilusi dari bias algoritma. Klaim ini secara empiris dibuktikan melalui hasil pengujian \textit{Ablation Study} (Tabel \ref{tab:ablation_study}). Ketika fitur statistik makroskopis ($\beta$ dan $\gamma$) dicabut sepenuhnya dari model, fitur $\alpha$ terbukti secara mandiri masih mampu mempertahankan tingkat klasifikasi yang andal (mencapai \textit{F1-Score} 86\% pada tugas kategori). Fakta ini mengonfirmasi bahwa pola laten struktural yang diekstrak oleh 1D-CNN memang membawa nilai informasi prediktif diskriminatif yang sahih. Integrasi cerdas antara pengenalan pola spasial ($\alpha$) dan temporal ($\beta, \gamma$) inilah yang memvalidasi urgensi penggunaan arsitektur \textit{Hybrid Flow Vector} dalam menyelesaikan lanskap klasifikasi jaringan modern yang kompleks.
+
+\subsection{Daya Pembeda (Discriminative Power) Representasi Laten \texorpdfstring{$\alpha$}{alpha}}
+
+Tingginya metrik performa klasifikasi (F1-Score) pada tingkat kategori dan aplikasi spesifik membuktikan bahwa model tidak hanya mampu membedakan trafik VPN dan Non-VPN, tetapi juga mampu mengurai identitas layanan di dalam terowongan enkripsi itu sendiri. Kemampuan ini sangat ditopang oleh daya pembeda (\textit{discriminative power}) dari fitur spasial laten $\alpha$.
+
+Untuk memvalidasi apa yang sebenarnya dipelajari oleh lapisan konvolusi 1D-CNN dari data yang "terenkripsi" tersebut, dilakukan inspeksi silang secara manual terhadap raw bytes \textit{Hex Dump} dari tiga aplikasi berbeda (\textit{AIM Chat}, \textit{Email}, dan \textit{BitTorrent}) yang sama-sama beroperasi di dalam antarmuka VPN \texttt{tun0}. Hasil observasi visual ditunjukkan pada Gambar \ref{fig:wireshark_alpha_compare}.
+
+\begin{figure}[h!]
+    \centering
+    % Gambar komposit berisi 3 potongan Hex Dump (Chat, Email, Torrent)
+    \includegraphics[width=0.95\textwidth]{assets/pics/wireshark_alpha_compare.png}
+    \caption{Komparasi \textit{Hex Dump} paket awal dari tiga aplikasi berbeda di dalam terowongan VPN (\texttt{tun0}). Teks di-highlight menunjukkan letak \textit{signature} unik: (Kiri atas) \textit{TLS App Data} pada Chat, (Kanan atas) \textit{TLS Server Hello} pada Email, (Bawah) \textit{Plaintext HTTP GET} pada sesi inisialisasi BitTorrent.}
+    \label{fig:wireshark_alpha_compare}
+\end{figure}
+
+Merujuk pada Gambar \ref{fig:wireshark_alpha_compare}, terbukti secara empiris bahwa meskipun ketiga aliran lalu lintas tersebut telah diselubungi oleh perutean VPN (menggunakan blok IP 10.8.x.x), susunan biner mentah pada paket-paket awal (\textit{early-stage flows}) menyimpan pola spasial yang sepenuhnya asimetris:
+\begin{enumerate}
+    \item \textbf{Aplikasi Chat:} Menunjukkan \textit{offset} awal yang langsung didominasi oleh protokol enkripsi ringan (\textit{magic bytes} \texttt{17 03 01} untuk \textit{TLS 1.0 Application Data}).
+    \item \textbf{Aplikasi Email (SMTPS/IMAPS):} Menunjukkan rutinitas jabat tangan kriptografi yang jauh lebih tebal dengan penanda statis \textit{TLS Handshake} (\texttt{16 03 03} untuk \textit{TLS 1.2}) di posisi \textit{offset} yang berbeda.
+    \item \textbf{Aplikasi BitTorrent:} Menunjukkan anomali struktural di mana interaksi dengan \textit{tracker} justru mewariskan teks \textit{plaintext} protokol HTTP (\texttt{GET /29/item}) tepat di dalam muatan awal sebelum pertukaran paket \textit{peer-to-peer} terenkripsi dimulai.
+\end{enumerate}
+
+Pergeseran titik koordinat \textit{byte} dari port tujuan pada \textit{TCP header}, variasi panjang negosiasi \textit{TLS}, hingga kemunculan \textit{plaintext signature} ini membentuk ruang dimensi spasial yang stabil. Arsitektur 1D-CNN memetakan letak dan relasi spasial dari \textit{byte-byte} ini untuk mengkristalkannya menjadi 128 vektor $\alpha$. Penemuan empiris ini menggugurkan asumsi konvensional bahwa \textit{Deep Learning} pada analisis lalu lintas terenkripsi bekerja layaknya \textit{black-box} yang mengklasifikasikan keacakan statistik murni; melainkan bekerja persis seperti \textit{Deep Packet Inspection} (DPI) tingkat lanjut yang mampu mengekstrak pola letak koordinat spasial tanpa perlu melakukan dekripsi literal.
 
 %-----------------------------------------------------------------------------%
 \subsection{Analisis Multivariat dan Ortogonalitas Komponen (Matriks Korelasi)}
@@ -420,7 +452,9 @@ Analisis data di atas mengungkap dua fakta kunci yang memvalidasi keunggulan mod
 
 \begin{enumerate}
     \item \textbf{Redundansi Beta dan Gamma ($\rho > 0.9$):} \\
-    Terdapat korelasi positif yang sangat kuat (mencapai 0.926) antara fitur statistik \textit{flow} ($\beta$) dan statistik \textit{burst} ($\gamma$). Hal ini menunjukkan bahwa pada level aplikasi spesifik, informasi mengenai "volume ledakan data" ($\gamma$) pada dasarnya membawa informasi yang sama dengan "rata-rata ukuran paket" ($\beta$). Redundansi informasi ini menjelaskan mengapa kontribusi kepentingan (\textit{importance}) kedua komponen ini menyusut drastis (hanya ~12-13\%) pada Skenario 3, karena model menganggap keduanya tidak memberikan variasi informasi baru yang signifikan.
+    Terdapat korelasi positif yang sangat kuat (mencapai 0.926) antara fitur statistik \textit{flow} ($\beta$) dan statistik \textit{burst} ($\gamma$). Hal ini menunjukkan bahwa pada level aplikasi spesifik, informasi mengenai "volume ledakan data" ($\gamma$) pada dasarnya membawa informasi yang sama dengan "rata-rata ukuran paket" ($\beta$). Redundansi informasi ini menjelaskan mengapa kontribusi kepentingan (\textit{importance}) kedua komponen ini menyusut drastis (hanya $\sim$12-13\%) pada Skenario 3, karena model menganggap keduanya tidak memberikan variasi informasi baru yang signifikan.
+    
+    Lebih jauh lagi, tingkat redundansi (multikolinearitas) yang sangat tinggi ini sekaligus menjadi justifikasi analitis utama mengapa algoritma \textit{Ensemble Tree} seperti Random Forest dan XGBoost digunakan dalam HFV. Algoritma parametrik konvensional (seperti Regresi Linier atau Regresi Logistik) akan mengalami instabilitas prediktif jika dihadapkan pada multikolinearitas sebesar 0.92. Namun, model berbasis pohon keputusan memiliki ketahanan inheren (\textit{robustness}) yang secara otomatis mampu menoleransi korelasi antar-fitur tanpa merusak performa klasifikasi secara keseluruhan.
 
     \item \textbf{Ortogonalitas Alpha ($\rho \approx 0$):} \\
     Sebaliknya, fitur \texttt{alpha\_pp\_92} (fitur terpenting di Skenario 3) memiliki korelasi yang nyaris nol (0.096) terhadap \texttt{flow\_total\_packets}. Artinya, informasi yang dibawa oleh \textit{Deep Learning} benar-benar tegak lurus dan tidak memiliki hubungan linear dengan statistik lalu lintas konvensional. 
@@ -522,3 +556,45 @@ Kelemahan (\textit{blind spot}) ini memberikan landasan teori yang sangat menari
 \end{enumerate}
 
 Fenomena klasifikasi silang pada aplikasi berbasis web multi-layanan modern ini menjadi bukti bahwa teknik penyamaran berlapis (VPN + HTTPS) tetap memberikan tantangan pelik. Meskipun demikian, dengan akurasi pemisahan mayoritas aplikasi yang konsisten di angka 93\%, pendekatan hibrida HFV terbukti sangat solid dan layak diandalkan sebagai pengganti metode inspeksi muatan murni dalam lanskap pemantauan keamanan siber kontemporer.
+
+%-----------------------------------------------------------------------------%
+\section{Analisis Kinerja Waktu Eksekusi (End-to-End Latency)}
+\label{sec:bab4-waktu-eksekusi}
+%-----------------------------------------------------------------------------%
+
+Dalam konteks implementasi sistem pemantauan jaringan dunia nyata seperti \textit{Intrusion Detection System} (IDS) waktu-nyata (\textit{real-time}), tingkat akurasi yang tinggi tidak akan bermakna jika arsitektur model membebani jaringan dengan \textit{bottleneck} komputasional. Perlu ditegaskan bahwa pengukuran "waktu eksekusi" dalam pengujian ini secara spesifik merujuk pada \textbf{\textit{Inference Time}} (waktu inferensi/prediksi pada fase \textit{online}), bukan \textit{Training Time} (waktu pelatihan model pada fase \textit{offline}). 
+
+Dalam arsitektur perangkat keras jaringan (\textit{router} atau sensor IDS), proses isolasi aliran data dari lalu lintas tidak melibatkan pembacaan berkas PCAP pada media penyimpanan disk (\textit{disk I/O}), melainkan dilakukan melalui perakitan aliran di dalam memori \textit{buffer} berkecepatan tinggi (\textit{RAM buffer}) secara \textit{wire-speed}. Oleh karena itu, parameter latensi yang dievaluasi murni difokuskan pada pemrosesan \textbf{\textit{End-to-End}}: mulai dari proses ekstraksi \textit{buffer} memori menjadi vektor fitur menggunakan 1D-CNN, hingga algoritma \textit{ensemble} menghasilkan keputusan klasifikasi akhir. Rincian profil beban waktu eksekusi rata-rata per aliran (\textit{flow}) ditunjukkan pada Tabel \ref{tab:end_to_end_latency}.
+
+\begin{table}[h!]
+\centering
+\caption{Hasil Pengukuran Latensi \textit{End-to-End} Pemrosesan HFV per Aliran Data (\textit{Flow})}
+\label{tab:end_to_end_latency}
+\begin{tabular}{p{8cm} c}
+\hline
+\textbf{Fase Komputasi (Inferensi Online)} & \textbf{Waktu Eksekusi (Milidetik)} \\ \hline
+1. Ekstraksi Fitur Laten $\alpha$ (Inferensi 1D-CNN) & 1,172 ms \\ 
+2. Ekstraksi Fitur Temporal-Spasial ($\beta$ dan $\gamma$) & $\sim$ 0,005 ms \\ 
+3. Klasifikasi Keputusan Akhir (Inferensi XGBoost) & 0,026 ms \\ \hline
+\textbf{Total Latensi End-to-End Rata-rata} & \textbf{1,203 ms} \\ \hline
+\end{tabular}
+\end{table}
+
+Sebagaimana direpresentasikan pada Tabel \ref{tab:end_to_end_latency}, terlihat jelas profil asimetris dari beban komputasi sistem. Jaringan saraf tiruan (1D-CNN) memakan porsi waktu dominan (lebih dari 97\%) dari keseluruhan proses. Meskipun \textit{Deep Learning} menuntut biaya komputasi yang tinggi, \textbf{total waktu eksekusi \textit{end-to-end} masih berada di angka yang sangat optimal, yakni 1,203 milidetik per aliran data.} 
+
+Kinerja pada rentang $\sim 1,2$ milidetik per aliran ini mengonfirmasi kelayakan operasional HFV secara absolut. Mengingat inspeksi hanya perlu dilakukan satu kali pada 10 paket pertama (\textit{early-stage detection}), status identifikasi aplikasi ini selanjutnya dapat di-\textit{cache} untuk merutekan sisa paket pada sesi yang sama tanpa inspeksi ulang. Penambahan jeda 1,2 milidetik di tingkat perangkat perbatasan (\textit{edge router}) tidak akan menyebabkan degradasi \textit{Quality of Service} (QoS) atau penundaan propagasi yang dapat dirasakan oleh pengguna pada aplikasi \textit{real-time} seperti \textit{live streaming} maupun \textit{VoIP}.
+
+%-----------------------------------------------------------------------------%
+\section{Batasan Penelitian dan Generalisasi Model (\textit{Generability})}
+\label{sec:bab4-generalisasi}
+%-----------------------------------------------------------------------------%
+
+Meskipun model \textit{Hybrid Flow Vector} mencapai tingkat akurasi dan efisiensi waktu yang sangat tinggi pada eksperimen ini, hasil tersebut harus dimaknai dengan mempertimbangkan batasan (\textit{constraints}) arsitektur data. Eksperimen ini secara eksklusif berfokus pada jejak lalu lintas terenkripsi yang dibangkitkan dari arsitektur terowongan \textbf{OpenVPN}.
+
+Dalam perspektif generalisasi silang (\textit{cross-protocol generability}), arsitektur ini memiliki dua perilaku prediksi yang berbeda:
+\begin{enumerate}
+    \item \textbf{Fitur Temporal-Makroskopis ($\beta$ dan $\gamma$):} Komponen fitur statistik ini diproyeksikan akan tetap tangguh (memiliki generalisasi tinggi) jika dihadapkan pada lalu lintas protokol VPN jenis lain. Hal ini karena perubahan ritme semburan data akibat antrean \textit{buffer} dan MTU adalah fenomena mekanik jaringan yang universal pada semua mesin terowongan virtual.
+    \item \textbf{Fitur Spasial-Mikroskopis ($\alpha$):} Model probabilistik 1D-CNN sangat bergantung pada tata letak susunan \textit{byte} tingkat rendah. Jika diterapkan secara langsung pada protokol VPN modern seperti \textbf{WireGuard} atau \textbf{IPSec} tanpa pra-pelatihan ulang (\textit{fine-tuning}), komponen $\alpha$ memiliki probabilitas degradasi performa yang tinggi. Protokol kriptografi modern (misalnya \textit{ChaCha20-Poly1305} pada WireGuard) akan menghasilkan struktur pergeseran \textit{header} dan blok \textit{padding} yang berbeda secara mekanis dari susunan \textit{OpenSSL} yang dipelajari pada dataset saat ini.
+\end{enumerate}
+
+Pemahaman terhadap batasan struktural protokol inilah yang membuka ruang bagi pengembangan kerangka kerja HFV lebih lanjut menuju model fondasi deteksi keamanan (\textit{security foundation models}) yang dilatih pada berbagai lanskap protokol jaringan lintas generasi.

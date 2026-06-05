@@ -2,30 +2,23 @@
 \chapter{\babLima}
 \label{cha:penutup}
 
-Bab ini merangkum seluruh hasil penelitian yang telah dilakukan untuk menjawab rumusan masalah dan tujuan yang telah ditetapkan pada Bab 1. Selain itu, bab ini juga menyajikan rekomendasi dan saran untuk pengembangan penelitian di masa mendatang berdasarkan batasan dan temuan analisis kesalahan yang telah dievaluasi.
+Bab ini merangkum seluruh hasil penelitian yang telah dilakukan untuk menjawab rumusan masalah dan tujuan yang telah ditetapkan pada Bab 1. Selain itu, bab ini juga menyajikan rekomendasi dan saran untuk pengembangan penelitian di masa mendatang berdasarkan batasan dan temuan analisis yang telah dievaluasi.
 
 %-----------------------------------------------------------------------------%
 \section{Kesimpulan}
 \label{sec:kesimpulan}
 %-----------------------------------------------------------------------------%
 
-Berdasarkan perancangan, implementasi, dan pengujian kerangka kerja \textit{Hybrid Flow Vector} (HFV) untuk klasifikasi lalu lintas VPN terenkripsi, dapat ditarik beberapa kesimpulan sebagai berikut:
+Berdasarkan perancangan, implementasi, dan pengujian kerangka kerja \textit{Hybrid Flow Vector} (HFV) untuk klasifikasi lalu lintas VPN terenkripsi, dapat ditarik beberapa kesimpulan utama sebagai berikut:
 
 \begin{enumerate}
-    \item \textbf{Pengembangan Metode Klasifikasi \textit{Fine-Grained} Tanpa Dekripsi:} \\
-    Penelitian ini telah berhasil mengembangkan sebuah metodologi \textit{decryption-free} (tanpa memerlukan proses dekripsi menjadi \textit{plaintext}) untuk mengidentifikasi kategori layanan dan aplikasi spesifik di dalam terowongan VPN. Melalui skema klasifikasi bertingkat (\textit{hierarchical classification}) dan penerapan pemetaan data yang ketat untuk mencegah kebocoran data (\textit{data leakage}), model algoritma \textit{Ensemble Soft Voting} (kombinasi \textit{Random Forest} dan XGBoost) terbukti sebagai arsitektur terbaik. Model ini mampu membedakan lalu lintas terenkripsi secara \textit{fine-grained} dengan tingkat konsistensi metrik yang tinggi di berbagai skenario evaluasi.
-    
-    \item \textbf{Implementasi Model Representasi \textit{Hybrid Flow Vector} (HFV):} \\
-    Model representasi fitur hibrida HFV $\Omega = (\alpha \oplus \beta \oplus \gamma)$ telah sukses dirancang dan diimplementasikan menjadi sebuah vektor kohesif berdimensi 249. Analisis korelasi \textit{Spearman} secara multivariat membuktikan bahwa integrasi ketiga pilar analisis—yakni representasi struktural \textit{byte-level} dari 1D-CNN ($\alpha$), profil makroskopis \textit{flow} ($\beta$), dan dinamika waktu \textit{burst} ($\gamma$)—berhasil menangkap dimensi informasi yang saling independen (ortogonal). Hal ini mengonfirmasi bahwa pendekatan hibrida tidak sekadar menciptakan redundansi, melainkan mengekstraksi \textit{signature} perilaku jaringan yang komprehensif.
+    \item Penelitian ini telah berhasil mengembangkan sebuah metodologi \textit{decryption-free} (tanpa memerlukan dekripsi menjadi \textit{plaintext}) untuk mengidentifikasi kategori layanan dan aplikasi spesifik di dalam terowongan VPN. Melalui penerapan pemetaan data yang ketat untuk mencegah kebocoran data (\textit{data leakage}), model \textit{Ensemble Soft Voting} (kombinasi \textit{Random Forest} dan XGBoost) terbukti mampu membedakan lalu lintas terenkripsi secara \textit{fine-grained} dengan tingkat konsistensi metrik yang tinggi.
 
-    \item \textbf{Kinerja, Robustisitas, dan Kontribusi Komplementer Pilar Fitur:} \\
-    Evaluasi empiris pada dataset ISCX 2016 membuktikan bahwa kerangka kerja HFV mencapai tingkat akurasi dan \textit{robustisitas} yang superior. Kinerja model mencatatkan skor \textit{F1-Macro} sebesar 96.01\% untuk Skenario Biner (Deteksi VPN), 91.84\% untuk Skenario Kategori VPN, dan 91.62\% untuk Skenario Aplikasi Spesifik VPN. 
-    \textit{Ablation study} dan Analisis \textit{Feature Importance} mengungkap fakta kritis mengenai sifat komplementer dari pilar HFV:
-    \begin{itemize}
-        \item Fitur statistik makroskopis ($\beta$) sangat mendominasi dan efektif untuk mendeteksi keberadaan VPN secara biner.
-        \item Namun, untuk menembus kompleksitas klasifikasi \textit{fine-grained} (identifikasi aplikasi spesifik), model secara mutlak mengandalkan komponen \textit{deep learning} ($\alpha$) dengan persentase kontribusi keputusan mencapai 74.57\%. Komponen $\alpha$ krusial karena ia mampu menangkap presisi struktural \textit{padding} kriptografis yang tidak dapat dilihat oleh analisis heuristik aliran data konvensional.
-        \item Integrasi utuh ketiganya (Full HFV) dipertahankan sebagai solusi paling optimal karena memberikan arsitektur keamanan yang jauh lebih tahan terhadap teknik penghindaran (\textit{evasion-resistant}) di dunia nyata dibandingkan model yang hanya mengandalkan fitur tunggal.
-    \end{itemize}
+    \item Model representasi fitur hibrida HFV $\Omega = (\alpha \oplus \beta \oplus \gamma)$ telah sukses diimplementasikan menjadi vektor kohesif. Analisis korelasi \textit{Spearman} secara multivariat membuktikan bahwa integrasi representasi struktural \textit{byte-level} ($\alpha$) bersifat sepenuhnya ortogonal (independen) terhadap profil makroskopis \textit{flow} ($\beta$) dan dinamika \textit{burst} ($\gamma$). Hal ini mengonfirmasi bahwa komponen 1D-CNN memberikan dimensi kecerdasan baru yang secara efektif membedakan "sidik jari" aplikasi yang memiliki kemiripan statistik.
+
+    \item Kinerja model mencatatkan skor \textit{F1-Macro} sebesar 96.01\% untuk Skenario Biner (Deteksi VPN), 91.84\% untuk Skenario Kategori VPN, dan 91.62\% untuk Skenario Aplikasi Spesifik. Hasil \textit{Ablation Study} mengungkap sifat komplementer pilar HFV: fitur statistik ($\beta$) sangat mendominasi pada deteksi biner, namun pada klasifikasi aplikasi spesifik (\textit{fine-grained}), model secara mutlak mengandalkan komponen struktural ($\alpha$) dengan kontribusi keputusan mencapai 74.57\%. Integrasi ketiganya terbukti menciptakan arsitektur yang tahan banting terhadap redundansi data.
+
+    \item Hasil pengukuran latensi \textit{end-to-end} membuktikan bahwa kerangka kerja HFV sangat efisien secara komputasional. Total waktu eksekusi inferensi rata-rata per aliran data (\textit{flow}) hanya membutuhkan waktu 1,203 milidetik, dengan ekstraksi 1D-CNN ($\alpha$) memakan waktu 1,172 ms dan inferensi klasifikasi XGBoost sebesar 0,026 ms. Profil latensi pada skala sub-milidetik per aliran ini memastikan bahwa model HFV siap untuk diimplementasikan pada sensor \textit{Intrusion Detection System} (IDS) waktu-nyata tanpa menimbulkan gangguan \textit{Quality of Service} (QoS) pada jaringan.
 \end{enumerate}
 
 %-----------------------------------------------------------------------------%
@@ -33,15 +26,14 @@ Berdasarkan perancangan, implementasi, dan pengujian kerangka kerja \textit{Hybr
 \label{sec:saran}
 %-----------------------------------------------------------------------------%
 
-Meskipun kerangka kerja \textit{Hybrid Flow Vector} (HFV) menunjukkan hasil yang sangat menjanjikan, terdapat beberapa area yang dapat dikembangkan untuk menyempurnakan penelitian ini di masa mendatang:
+Meskipun kerangka kerja \textit{Hybrid Flow Vector} (HFV) menunjukkan hasil klasifikasi yang sangat andal, terdapat beberapa ruang pengembangan untuk menyempurnakan penelitian ini di masa mendatang:
 
 \begin{enumerate}
-    \item \textbf{Penanganan Obfuscasi pada Aplikasi Pesan Singkat (\textit{Chat}):} \\
-    Analisis \textit{Confusion Matrix} mengungkap bahwa kategori lalu lintas \textit{Chat} rentan mengalami kesalahan klasifikasi akibat paket teks berukuran sangat kecil yang disamarkan oleh mekanisme \textit{Block Cipher Padding} pada protokol VPN. Penelitian selanjutnya disarankan untuk mengeksplorasi teknik analisis derivatif waktu (seperti analisis frekuensi \textit{jitter} tingkat milidetik) yang secara khusus dioptimalkan untuk menembus \textit{padding} pada ukuran paket homogen.
-    
-    \item \textbf{Resolusi Klasifikasi Aplikasi Web Multi-Modal:} \\
-    Sistem saat ini mengalami kesulitan moderat dalam membedakan aplikasi multi-layanan modern seperti Facebook dan Hangout. Kesulitan ini dipicu oleh penggunaan infrastruktur \textit{Content Delivery Network} (CDN) yang tumpang tindih dan enkripsi ganda (HTTPS di dalam VPN). Peneliti berikutnya disarankan untuk mengeksplorasi arsitektur \textit{Graph Neural Networks} (GNN) guna memetakan korelasi topologis dan perilaku komunikasi spasial antar-\textit{flow} (\textit{cross-flow analysis}), alih-alih hanya menganalisis \textit{flow} secara terisolasi.
-    
-    \item \textbf{Pembaruan Dataset dan Evaluasi \textit{Real-Time}:} \\
-    Model HFV terbukti sangat \textit{robust} pada dataset ISCX 2016. Namun, untuk memvalidasi generalisasi model terhadap evolusi arsitektur jaringan terbaru (seperti adopsi protokol QUIC/HTTP3 atau TLS 1.3 secara masif), diperlukan pengujian ulang menggunakan dataset lalu lintas modern. Selain itu, diperlukan optimasi komputasional pada modul ekstraksi fitur ($\beta$ dan $\gamma$) agar kerangka kerja HFV dapat diimplementasikan sebagai sensor \textit{Intrusion Detection System} (IDS) yang beroperasi secara \textit{real-time} pada lingkungan produksi \textit{live-network}.
+    \item Model pada penelitian ini dievaluasi secara eksklusif menggunakan infrastruktur lalu lintas \textbf{OpenVPN}. Mengingat fitur spasial-mikroskopis 1D-CNN ($\alpha$) sangat bergantung pada tata letak \textit{byte} dari arsitektur perangkat lunak kriptografi tertentu, penelitian selanjutnya sangat disarankan untuk menguji dan melakukan \textit{fine-tuning} model HFV terhadap lanskap protokol VPN modern lainnya seperti \textbf{WireGuard} (dengan arsitektur \textit{ChaCha20-Poly1305}) atau \textbf{IPSec}. Evaluasi ini krusial untuk membuktikan fleksibilitas dan generalisasi lintas-protokol keamanan jaringan.
+
+    \item Kerangka kerja ini divalidasi menggunakan dataset benchmark ISCX 2016. Untuk menjaga relevansi model terhadap evolusi arsitektur internet global, disarankan melakukan pengujian ulang menggunakan dataset lalu lintas modern yang mengakomodasi adopsi protokol transportasi terbaru, seperti penerapan masif \textbf{QUIC (HTTP/3)} dan \textbf{TLS 1.3} yang secara inheren mengubah struktur metadata jabat tangan jaringan.
+
+    \item Analisis kesalahan (\textit{Confusion Matrix}) mengungkap bahwa kategori \textit{Chat} rentan mengalami misklasifikasi akibat ukuran muatan paket yang terlalu kecil sehingga tertutup oleh mekanisme \textit{Block Cipher Padding}. Pengembangan di masa depan disarankan untuk mengeksplorasi teknik analisis derivatif waktu (seperti fitur analisis frekuensi \textit{jitter} antar-paket dalam skala mikroskopis) yang dioptimalkan untuk mendeteksi ritme ketikan (\textit{keystroke dynamics}) di balik \textit{padding} tersebut.
+
+    \item Sistem saat ini mengalami kesulitan moderat dalam membedakan aplikasi ekosistem terintegrasi seperti layanan Google atau Facebook akibat penggunaan infrastruktur \textit{Content Delivery Network} (CDN) yang tumpang tindih. Peneliti berikutnya direkomendasikan untuk mengeksplorasi arsitektur \textit{Graph Neural Networks} (GNN) guna memetakan korelasi topologis dan perilaku komunikasi spasial antar-\textit{flow} (\textit{cross-flow analysis}), guna melengkapi analisis terisolasi pada tingkat aliran data tunggal.
 \end{enumerate}

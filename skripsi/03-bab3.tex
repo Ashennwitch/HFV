@@ -55,7 +55,7 @@ Fakta arsitektur perekaman ini dibuktikan melalui analisis silang (\textit{cross
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.95\textwidth]{assets/pics/wireshark_ip_compare.png}
-    \caption{Perbandingan visibilitas alamat IP pada antarmuka penangkapan data. Bagian atas menunjukkan kondisi Non-VPN (antarmuka fisik dengan \textit{Source IP} 131.202.240.87), sedangkan bagian bawah menunjukkan kondisi VPN yang direkam di dalam \texttt{tun0} (pergeseran \textit{Source IP} menjadi 10.8.8.178).}
+    \caption{Perbandingan visibilitas alamat IP pada antarmuka penangkapan data. Bagian atas menunjukkan kondisi Non-VPN (antarmuka fisik dengan \textit{Destination IP} 131.202.240.87), sedangkan bagian bawah menunjukkan kondisi VPN yang direkam di dalam \texttt{tun0} (pergeseran \textit{Destination IP} menjadi 10.8.8.178).}
     \label{fig:perbandingan_aim_wireshark}
 \end{figure}
 
@@ -69,8 +69,8 @@ Analisis struktural lebih lanjut menggunakan pustaka inspeksi (\texttt{scapy}) p
 \hline
 \textbf{Atribut Jaringan} & \textbf{Trafik Standar (Non-VPN)} & \textbf{Trafik VPN (Virtual Interface \texttt{tun0})} \\ \hline
 Nama Berkas Contoh & \texttt{aim\_chat\_3a.pcap} & \texttt{vpn\_aim\_chat1a.pcap} \\ \hline
-Alamat IP Sumber & Alamat IP Publik asli komputer \textit{host} (Blok Universitas: \texttt{131.202.240.87}) & Alamat IP Privat Virtual internal terowongan OpenVPN (\texttt{10.8.8.178}) \\ \hline
-Alamat IP Tujuan & Alamat IP Publik Server Aplikasi asli (Contoh Server AIM: \texttt{205.188.12.91}) & Alamat IP Publik Server Aplikasi asli (Contoh Server AIM: \texttt{205.188.12.91}) \\ \hline
+Alamat IP Sumber & Alamat IP Publik Server Aplikasi asli (Contoh Server AIM: \texttt{205.188.12.91}) & Alamat IP Publik Server Aplikasi asli (Contoh Server AIM: \texttt{205.188.12.91})\\ \hline
+Alamat IP Tujuan & Alamat IP Publik asli komputer \textit{host} (Blok Universitas: \texttt{131.202.240.87}) & Alamat IP Privat Virtual internal terowongan OpenVPN (\texttt{10.8.8.178}) \\ \hline
 Port Transportasi & \textit{Port} asli milik layanan aplikasi (Contoh: TCP port 443 / port khusus) & \textit{Port} asli milik layanan aplikasi (Contoh: TCP port 443 / port khusus) \\ \hline
 Visibilitas Konten & Terenkripsi pada tingkat lapisan aplikasi melalui protokol TLS/HTTPS & Terenkripsi pada tingkat lapisan aplikasi (TLS/HTTPS) dan mengalami pembatasan MTU internal VPN \\ \hline
 \end{tabular}
@@ -345,23 +345,81 @@ Dengan mengintegrasikan ketiga komponen ini, vektor HFV $\Omega$ menyediakan rep
 \subsection{Komponen \texorpdfstring{$\alpha$}{alpha}: Ekstraksi Fitur 1D-CNN dari Pola Byte-Level}
 \label{subsec:komponen_alpha}
 
-Komponen $\alpha$ dirancang untuk menangkap \textbf{pola mikroskopis level-byte} yang ada di dalam \textit{payload} terenkripsi. Berbeda dengan analisis statistik ($\beta$ dan $\gamma$) yang melihat \textit{flow} dari luar, komponen $\alpha$ mencoba "mengintip" ke dalam data mentah itu sendiri.
+Komponen $\alpha$ dirancang secara khusus untuk menangkap \textbf{pola mikroskopis spasial pada level byte} yang terkandung di dalam aliran data terenkripsi. Berbeda dengan analisis statistik konvensional ($\beta$ dan $\gamma$) yang mengekstrak fitur makroskopis temporal dari luar aliran, komponen $\alpha$ melakukan inspeksi langsung ke dalam susunan biner mentah lalu lintas jaringan tanpa melakukan proses dekripsi (\textit{decryption-free inspection}).
 
-Literatur telah menunjukkan bahwa meskipun terenkripsi, \textit{raw packet payload} seringkali masih mengandung pola-pola yang dapat dipelajari oleh model \textit{Deep Learning}, khususnya \textit{1D-Convolutional Neural Networks} (1D-CNN) \citep{wang2017end, Lotfollahi2019}. Pola-pola ini dapat berupa artefak dari protokol aplikasi, \textit{padding}, atau tanda tangan (\textit{signature}) unik lainnya yang tidak dihilangkan oleh enkripsi.
+Meskipun lalu lintas data berada dalam kondisi tersandi, literatur keamanan siber membuktikan bahwa bagian awal dari aliran data (\textit{early-stage flows}) tidak sepenuhnya berupa biner acak tak berstruktur \citep{wang2017end, Lotfollahi2019}. Pada konteks dataset ISCX 2016, hasil pembedahan struktur \textit{Hex Dump} secara empiris membuktikan bahwa arsitektur \textit{1D-Convolutional Neural Networks} (1D-CNN) pada komponen $\alpha$ secara efektif memetakan ruang fitur laten dari dua elemen struktural krusial:
+\begin{enumerate}
+    \item \textbf{Struktur \textit{Inner Header} Jaringan:} Karena perekaman lalu lintas VPN dilakukan pada antarmuka virtual \texttt{tun0}, elemen \textit{header} jaringan asli milik aplikasi tetap dipertahankan pada awal blok memori. Observasi pada raw bytes menunjukkan setiap paket konsisten diawali dengan urutan biner statis seperti \texttt{0x4500} (penanda awal arsitektur IPv4). \textit{Offset} dan fluktuasi panjang \textit{header} IP/TCP ini menyediakan kerangka spasial yang stabil bagi algoritma jaringan saraf konvolusi.
+    \item \textbf{Metadata Jabat Tangan Aplikasi (\textit{Protocol Magic Bytes}):} Sebelum enkripsi total menutupi seluruh blok komunikasi, pustaka aplikasi menyisipkan metadata protokol transparan. Sebagai contoh empiris pada aliran \textit{AIM Chat}, secara persisten ditemukan urutan \textit{magic bytes} \texttt{0x170301} (penanda muatan \textit{TLS 1.0 Application Data}) atau \texttt{0x170303} (TLS 1.2) yang menjembatani \textit{header} dan blok terenkripsi (\textit{ciphertext}). Karena setiap layanan daring dikembangkan dengan tumpukan pustaka (\textit{software stack}), mekanisme \textit{padding}, dan set \textit{Cipher Suite} yang berbeda, susunan biner awal pada fase negosiasi ini membentuk sidik jari struktural (\textit{fingerprint}) yang unik antar-kelas aplikasi.
+\end{enumerate}
 
-Proses ekstraksi ini terdiri dari dua tahap utama: konstruksi tensor input dan pembelajaran representasi laten menggunakan \textit{Deep Learning}.
+Bukti empiris mengenai keberadaan pola struktural biner laten ini dapat diobservasi langsung melalui inspeksi \textit{Hex Dump} Wireshark, seperti yang diilustrasikan pada Gambar \ref{fig:wireshark_alpha_bytes}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{assets/pics/wireshark_alpha_bytes.png}
+    \caption{Visualisasi jendela \textit{Hex Dump} dari paket \textit{AIM Chat} yang diekstraksi dari antarmuka \texttt{tun0}. Terlihat secara transparan struktur statis \textit{inner header} (awal \texttt{45 00}) yang berlanjut pada metadata protokol TLS (\texttt{17 03 XX}) sebelum berubah menjadi blok \textit{ciphertext} acak. Pola spasial tersembunyi inilah yang dipelajari oleh arsitektur 1D-CNN.}
+    \label{fig:wireshark_alpha_bytes}
+\end{figure}
 
 \subsubsection{Representasi Input dan Normalisasi}
-Agar dapat diproses oleh Neural Network, setiap \textit{flow} dikonversi menjadi representasi matriks numerik. Penelitian ini mengambil $N=10$ paket pertama dari setiap \textit{flow}, di mana setiap paket dipotong atau di-\textit{padding} hingga mencapai panjang tetap $L=784$ byte.
+Agar pola struktural biner yang bervariasi ini dapat dikonsumsi oleh lapisan konvolusi \textit{Neural Network}, seluruh aliran paket harus ditransformasikan menjadi representasi matriks numerik dua dimensi yang simetris secara struktural. Prosedur penyiapan tensor input ini diimplementasikan melalui dua tahap berurutan:
+\begin{enumerate}
+    \item \textbf{Pemotongan Aliran (\textit{Flow Slicing}):} Model mengambil batas potong pada $N=10$ paket pertama yang membawa muatan data dari setiap iterasi sesi (\textit{flow}). Batasan empiris ini ditetapkan karena fase jabat tangan kriptografi (\textit{handshake}) dan inisialisasi sesi aplikasi seluruhnya terkonsentrasi pada segmen awal koneksi, sebelum berganti ke lalu lintas arus utama yang bersifat sepenuhnya statis atau acak.
+    \item \textbf{Penyelarasan Dimensi (\textit{Padding and Truncation}):} Setiap paket dipotong secara sekuensial jika panjangnya melampaui, atau diisi dengan biner kosong (\textit{zero padding}) jika kurang, hingga memenuhi ukuran \textit{buffer} statis sebesar $L=784$ byte. Kapasitas 784 byte ditetapkan secara presisi berdasarkan analisis anatomis \textit{raw payload}. Observasi empiris membuktikan bahwa panjang \textit{header} jaringan bersifat fluktuatif (misalnya \textit{TCP header} yang bervariasi antara 20 hingga 32 byte akibat keberadaan \textit{TCP Options}). Fluktuasi ini menyebabkan letak \textit{magic bytes} bergeser secara dinamis (seperti pada \textit{offset} ke-40 untuk aplikasi \textit{Chat} dan \textit{offset} ke-52 untuk \textit{Email}). Dimensi $L=784$ memberikan ruang kanvas spasial yang memadai agar arsitektur 1D-CNN dapat memetakan pergeseran titik koordinat tersebut, menelan seluruh blok jabat tangan kriptografi yang umumnya berukuran 150-250 byte, sekaligus menjadikan sisa biner kosong (\textit{zero padding}) di akhir matriks sebagai bagian dari sidik jari keruangan (\textit{sparsity signature}) yang khas untuk setiap aplikasi.
+\end{enumerate}
 
-Data mentah (\textit{raw bytes}) yang bernilai integer $[0, 255]$ dinormalisasi menjadi bilangan riil $[0.0, 1.0]$ untuk mempercepat konvergensi gradien saat pelatihan. Secara matematis, jika $x_{i,j}$ adalah nilai byte ke-$j$ pada paket ke-$i$, maka nilai input ter-normalisasi $x'_{i,j}$ didefinisikan pada Persamaan \ref{eq:alpha_norm}.
+Secara visual, anatomi informasi struktural apa saja yang umumnya tertangkap di dalam rentang sampel observasi $L=784$ byte ini dapat dilihat pada Gambar \ref{fig:anatomy_784_bytes}. Jendela pengamatan sebesar ini menjamin model 1D-CNN tidak kehilangan konteks perpindahan dari data transparan ke \textit{ciphertext}.
+
+\begin{figure}[h!]
+    \centering
+    \begin{tikzpicture}[font=\small, x=0.016cm, y=1.2cm]
+        % --- Menggambar Kotak Utama (0 hingga 784) ---
+        \draw[thick] (0,0) rectangle (784, 1);
+
+        % --- Segmen 1: IPv4 Header (20 byte) ---
+        \draw[fill=blue!20, draw=black] (0,0) rectangle (20, 1) node[pos=.5, rotate=90] {\tiny IPv4};
+
+        % --- Segmen 2: TCP Header (20 byte) ---
+        \draw[fill=green!20, draw=black] (20,0) rectangle (40, 1) node[pos=.5, rotate=90] {\tiny TCP};
+
+        % --- Segmen 3: TLS Magic Bytes / Metadata (sekitar 80 byte) ---
+        % Menggunakan \scriptsize dan text width agar tidak keluar kotak
+        \draw[fill=yellow!30, draw=black] (40,0) rectangle (150, 1) node[pos=.5, align=center, font=\scriptsize, text width=1.6cm] {Metadata\\Jabat Tangan\\(TLS Records)};
+
+        % --- Segmen 4: Ciphertext (Muatan Terenkripsi) ---
+        \draw[fill=red!20, draw=black] (150,0) rectangle (650, 1) node[pos=.5, align=center] {Muatan Terenkripsi\\(\textit{Ciphertext Block})};
+
+        % --- Segmen 5: Zero Padding ---
+        % Menggunakan \scriptsize dan text width
+        \draw[fill=gray!20, draw=black] (650,0) rectangle (784, 1) node[pos=.5, align=center, font=\scriptsize, text width=1.9cm] {Biner Kosong\\(\textit{Zero Padding})};
+
+        % --- Kurung Kurawal Atas (Anotasi Kategori) ---
+        % Disesuaikan menjadi multi-baris pada bagian yang sempit
+        \draw[decorate,decoration={brace,amplitude=5pt},thick] (0,1.1) -- (150,1.1) node[midway,above=5pt, align=center, font=\scriptsize, text width=2.2cm] {Transparan\\(\textit{Header} \& \textit{Metadata})};
+        
+        \draw[decorate,decoration={brace,amplitude=5pt},thick] (150,1.1) -- (650,1.1) node[midway,above=5pt, align=center] {Buram / \textit{Opaque} (Terenkripsi)};
+        
+        \draw[decorate,decoration={brace,amplitude=5pt},thick] (650,1.1) -- (784,1.1) node[midway,above=5pt, align=center, font=\scriptsize, text width=2cm] {Penyelarasan\\(\textit{Padding})};
+
+        % --- Garis Ukuran Bawah (0 - 784) ---
+        \draw[|-|] (0,-0.3) -- (784,-0.3) node[midway,below] {Panjang Tensor Input Konvolusi (1D-CNN): $\mathbf{L = 784}$ \textbf{byte}};
+        \node[below] at (0,-0.3) {0};
+        \node[below] at (784,-0.3) {784};
+    \end{tikzpicture}
+    
+    \caption{Ilustrasi konseptual pemetaan data paket ke dalam batas rentang \textit{buffer} tetap $L=784$ byte, yang mencakup komponen transparan (\textit{header}), penanda negosiasi aplikasi (\textit{TLS records}), hingga batasan blok \textit{ciphertext}.}
+    \label{fig:anatomy_784_bytes}
+\end{figure}
+
+Langkah selanjutnya adalah tahapan normalisasi. Data nilai biner mentah (\textit{raw bytes}) berwujud array integer dasar dalam rentang dimensi $[0, 255]$. Rangkaian matriks ini kemudian dikompresi menjadi bilangan riil berskala $[0.0, 1.0]$. Reduksi skalar ini merupakan prosedur esensial dalam disiplin komputasi jaringan saraf tiruan untuk menghindarkan model dari masalah \textit{exploding gradients}, serta mereduksi kompleksitas waktu komputasi konvergensi. Jika $x_{i,j}$ merepresentasikan letak nilai integer desimal dari byte ke-$j$ pada paket ke-$i$, maka persamaannya dinyatakan seperti pada Persamaan \ref{eq:alpha_norm}.
 
 \begin{myequation}{Normalisasi Input Payload}
     \label{eq:alpha_norm}
     x'_{i,j} = \frac{x_{i,j}}{255.0}, \quad \forall i \in [1, N], \forall j \in [1, L]
 \end{myequation}
 
-Hasil dari tahap ini adalah tensor input $\mathbf{X} \in \mathbb{R}^{N \times L}$ untuk setiap sampel \textit{flow}.
+Konklusi dari seluruh rangkaian proses prapemrosesan aliran ini adalah terbentuknya tensor dimensi tinggi $\mathbf{X} \in \mathbb{R}^{N \times L}$ yang siap diproses sebagai input bagi mekanisme penemuan fitur laten.
 
 \subsubsection{Arsitektur 1D-CNN dan Ekstraksi Fitur Laten}
 Untuk mengekstraksi fitur dari data sekuensial ini, digunakan arsitektur \textit{1D-Convolutional Neural Network} (1D-CNN). Model ini dilatih dengan pendekatan \textit{supervised learning} untuk mengklasifikasikan aplikasi (tugas pendahuluan), namun tujuan utamanya adalah melatih lapisan \textit{Dense} internal sebagai feature encoder.
