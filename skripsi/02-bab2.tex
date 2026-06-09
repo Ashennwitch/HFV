@@ -61,6 +61,8 @@ OpenVPN adalah salah satu protokol dan perangkat lunak VPN bersumber terbuka (\t
 \end{itemize}
 
 \subsection{Lapisan Antarmuka Virtual (TUN dan TAP)}
+\label{subsec:bab2-tun-tap}
+
 Keunggulan fleksibilitas OpenVPN terletak pada kemampuannya beroperasi menggunakan penggerak virtual adapter (\textit{virtual network interface device drivers}) tingkat kernel, yaitu antarmuka TUN (\textit{network tunnel}) dan TAP (\textit{network tap}) \citep{crist2015mastering}. Kedua antarmuka virtual ini memiliki perbedaan fundamental pada lapisan operasional jaringan:
 
 \begin{itemize}
@@ -68,12 +70,79 @@ Keunggulan fleksibilitas OpenVPN terletak pada kemampuannya beroperasi menggunak
     \item Antarmuka TUN: Beroperasi pada Lapisan Network (Layer 3 OSI) yang bekerja secara spesifik untuk merutekan paket-paket IP standar jaringan \citep{crist2015mastering}.
 \end{itemize}
 
-Dalam implementasi model arsitektur klien/server standar, OpenVPN mengonfigurasi perangkat TUN untuk menerima peruteran seluruh lalu lintas data IP dari host klien ke dalam terowongan virtual privat \citep{crist2015mastering}. Server kemudian mengalokasikan alamat IP privat dinamis dari pangkalan data subnet kepada klien yang berhasil terautentikasi \citep{crist2015mastering}. Dataset ISCX 2016 yang menjadi subjek analisis utama dalam eksperimen penelitian ini dikumpulkan seluruhnya menggunakan mode antarmuka virtual TUN \citep{DraperGil2016}.
+Dalam implementasi model arsitektur klien/server standar, OpenVPN mengonfigurasi perangkat TUN untuk menerima peruteran seluruh lalu lintas data IP dari host klien ke dalam terowongan virtual privat \citep{crist2015mastering}. Server kemudian mengalokasikan alamat IP privat dinamis dari pangkalan data subnet kepada klien yang berhasil terautentikasi \citep{crist2015mastering}. Dataset ISCX 2016 yang menjadi subjek analisis utama dalam eksperimen penelitian ini dikumpulkan seluruhnya menggunakan mode antarmuka virtual TUN \citep{DraperGil2016}. 
+
+Konsekuensi teknis dari metode pengumpulan data pada antarmuka virtual \texttt{tun0} ini sangat krusial; berkas lalu lintas (\textit{pcap}) yang terekam merepresentasikan paket data pada titik sebelum mengalami enkapsulasi luar oleh daemon OpenVPN (untuk arus keluar) atau tepat setelah de-kapsulasi dilakukan (untuk arus masuk). Batasan penangkapan (\textit{capture boundary}) ini menjadi alasan mengapa struktur \textit{inner header} jaringan tetap terbaca secara transparan pada dataset.
 
 \subsection{Struktur Enkapsulasi dan Metadata OpenVPN}
-Proses pengamanan data pada OpenVPN melibatkan mekanisme enkapsulasi berlapis yang secara signifikan mengubah anatomi struktural paket sebelum ditransmisikan melintasi jaringan internet fisik publik \citep{crist2015mastering}. Pada lalu lintas jaringan non-VPN standar, perangkat pengamat jaringan luar dapat dengan mudah memeriksa \textit{header} paket asli untuk membaca alamat IP tujuan akhir, tipe protokol, serta informasi \textit{port} aplikasi yang digunakan (seperti TCP port 443 untuk komunikasi HTTPS). 
+\label{subsec:bab2-enkapsulasi}
 
-Namun, ketika mekanisme enkapsulasi terowongan OpenVPN diterapkan, paket IP asli milik aplikasi—yang mencakup \textit{inner header} (alamat IP privat asal dan tujuan, serta port aplikasi internal asli) beserta data aplikasinya (\textit{payload})—akan dienkripsi secara penuh dan dibungkus di dalam muatan data aman VPN \citep{crist2015mastering}. Akibatnya, elemen metadata publik yang tersisa pada \textit{outer header} (pembungkus luar paket) dan dapat diamati secara terbuka oleh perangkat perantara (\textit{intermediate routers}) hanyalah alamat IP fisik klien terluar, alamat IP publik dari Server VPN, serta nomor port transportasi luar yang seragam \citep{crist2015mastering}. Umumnya, pembungkus luar ini menggunakan UDP port 1194 sebagai standar default OpenVPN atau TCP port 443 untuk menyamar sebagai lalu lintas web TLS standar \citep{crist2015mastering}. Penyembunyian identitas port aplikasi inilah yang melandasi urgensi penggunaan algoritma pembelajaran mesin untuk mengenali karakteristik perilaku statistik aliran data yang tersisa.
+Proses pengamanan data pada OpenVPN melibatkan mekanisme enkapsulasi berlapis yang secara signifikan mengubah anatomi struktural paket ketika ditransmisikan melintasi jaringan internet fisik publik \citep{crist2015mastering}. Pada lalu lintas jaringan non-VPN standar, perangkat pengamat jaringan luar dapat dengan mudah memeriksa \textit{header} paket asli untuk membaca alamat IP tujuan akhir, tipe protokol, serta informasi \textit{port} aplikasi yang digunakan (seperti TCP port 443 untuk komunikasi HTTPS). 
+
+Ketika mekanisme enkapsulasi terowongan OpenVPN diterapkan pada jaringan fisik publik, paket IP asli milik aplikasi—yang mencakup \textit{inner header} (alamat IP privat asal dan tujuan, serta port aplikasi internal asli) beserta data aplikasinya (\textit{payload})—akan dienkripsi secara penuh oleh saluran data (\textit{data channel}) berbasis TLS dan dibungkus di dalam muatan data aman VPN \citep{crist2015mastering, stallings2006cryptography}. Akibatnya, elemen metadata publik yang tersisa pada \textit{outer header} (pembungkus luar paket) di jaringan publik hanyalah alamat IP fisik klien terluar, alamat IP publik dari Server VPN, serta nomor port transportasi luar yang seragam, seperti UDP port 1194 atau TCP port 443 \citep{crist2015mastering}.
+
+\begin{figure}[h!]
+    \centering
+    \resizebox{\textwidth}{!}{% Mengubah ukuran agar pas dengan lebar margin halaman
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.2cm, align=center, font=\small},
+        outer/.style={fill=gray!20},
+        ip/.style={fill=blue!20},
+        tcp/.style={fill=green!20},
+        app/.style={fill=yellow!30},
+        enc/.style={fill=red!20},
+        >=Stealth
+    ]
+
+    % --- BARIS 1: JARINGAN PUBLIK (eth0) ---
+    \node[block, outer, minimum width=2.5cm] (out_ip) {Outer IP Header\\(IP Publik)};
+    \node[block, outer, minimum width=2.5cm, right=0 of out_ip] (out_udp) {UDP Header\\(Port 1194)};
+    \node[block, outer, minimum width=2.5cm, right=0 of out_udp] (ovpn) {OpenVPN\\Header / MAC};
+    \node[block, enc, minimum width=6cm, right=0 of ovpn] (ovpn_payload) {Muatan Terenkripsi OpenVPN\\(\textit{Encrypted Payload})};
+
+    % Judul Baris 1 (Diposisikan di tengah keseluruhan baris)
+    \path (out_ip.north west) -- (ovpn_payload.north east) node[midway, above=0.3cm, font=\normalsize\bfseries] {Lalu Lintas di Jaringan Publik Luar (Antarmuka Fisik / \texttt{eth0})};
+
+    % --- BARIS 2: DALAM TEROWONGAN (tun0) ---
+    % Diturunkan jaraknya (below=2.8cm dari south west) agar tidak bertabrakan dengan garis/teks dekapsulasi
+    \node[block, ip, minimum width=2.5cm, below=2.8cm of out_ip.south west, anchor=north west] (in_ip) {Inner IP Header\\(Privat 10.8.x.x)};
+    \node[block, tcp, minimum width=2.5cm, right=0 of in_ip] (in_tcp) {Inner TCP/UDP\\(Port Aplikasi Asli)};
+    \node[block, app, minimum width=3cm, right=0 of in_tcp] (in_tls) {App Metadata\\(\textit{TLS Magic Bytes})};
+    \node[block, enc, minimum width=5.5cm, right=0 of in_tls] (in_app) {Data Aplikasi Aktual\\(\textit{Application Ciphertext})};
+
+    % Judul Baris 2 (Diposisikan di tengah keseluruhan baris)
+    \path (in_ip.north west) -- (in_app.north east) node[midway, above=0.4cm, font=\normalsize\bfseries] {Lalu Lintas di Dalam Terowongan (Antarmuka Virtual / \texttt{tun0})};
+
+    % --- GARIS PROYEKSI (Menunjukkan Dekapsulasi) ---
+    % pos=0.4 agar teks dekapsulasi naik sedikit dan tidak menimpa judul baris 2
+    \draw[dashed, thick, gray, ->] (ovpn_payload.south west) -- (in_ip.north west) node[pos=0.4, left, align=center, font=\footnotesize\itshape] {Dekapsulasi\\oleh Daemon\\OpenVPN};
+    \draw[dashed, thick, gray, ->] (ovpn_payload.south east) -- (in_app.north east);
+
+    % --- KOTAK PEMBATAS tun0 ---
+    % Membuat kotak putus-putus merah yang membungkus seluruh baris 2
+    \begin{scope}[on background layer]
+        \node[draw, dashed, red, ultra thick, inner sep=12pt, fill=red!5, fit=(in_ip) (in_app) (in_tls)] (tun0_box) {};
+    \end{scope}
+
+    % --- KURUNG KURAWAL (Area Ekstraksi Alpha) ---
+    \draw[decorate,decoration={brace,amplitude=10pt,mirror},thick, blue]
+        (in_ip.south west) -- (in_tls.south east) node[midway,below=15pt, font=\small\bfseries, blue] {Batas Ekstraksi Fitur Spasial 1D-CNN ($\alpha$)};
+
+    % --- LABEL KOTAK PEMBATAS tun0 ---
+    % Jarak diperjauh (below=1.2cm) agar tulisan merah di bawah berada di bawah teks kurung kurawal biru
+    \node[red, below=1.2cm of tun0_box.south, font=\small\bfseries] {Batas Penangkapan Lalu Lintas Dataset ISCX 2016};
+
+    \end{tikzpicture}
+    }
+    \caption{Visualisasi perbandingan anatomi enkapsulasi paket OpenVPN pada jaringan publik luar (\texttt{eth0}) dan titik batas penangkapan dataset pada antarmuka virtual (\texttt{tun0}). Diagram ini mengilustrasikan bagaimana representasi 1D-CNN ($\alpha$) berhasil mengekstrak pola spasial dari \textit{inner header} dan metadata jabat tangan aplikasi sebelum terenkripsi penuh.}
+    \label{fig:openvpn_encapsulation_structure}
+    \vspace{0.2cm}
+    {\scriptsize\textit{*Sumber: Ilustrasi konseptual dengan bantuan AI}}
+\end{figure}
+
+Namun, perlu dipahami secara mendalam bahwa karena arsitektur ekstraksi fitur dalam penelitian ini beroperasi pada lingkungan data yang dipanen dari antarmuka virtual \texttt{tun0}, representasi biner mentah yang dievaluasi berada di dalam batas enkapsulasi OpenVPN tersebut. Seperti yang diilustrasikan pada Gambar \ref{fig:openvpn_encapsulation_structure}, paket-paket data yang diumpankan ke dalam model terhindar dari selubung \textit{outer header} UDP 1194. 
+
+Kondisi ini menyisakan \textit{inner header} IPv4 (ditandai secara konstan oleh runtunan biner \texttt{0x4500}) beserta port internal asli aplikasi dalam bentuk yang transparan. Sementara itu, muatan aplikasi (\textit{payload}) di baliknya tetap berada dalam kondisi tersandi biner acak jika aplikasi dasar yang digunakan memanfaatkan enkripsi mandiri pada tingkat \textit{Transport-Level Security} (seperti runtunan \textit{magic bytes} \texttt{17 03 01} pada protokol HTTPS aplikasi \textit{Chat}). Karakteristik kombinasi antara stabilitas posisi spasial \textit{inner header} dan asimetri runtunan biner awal pada sisa \textit{payload} aplikasi inilah yang memvalidasi landasan ilmiah dari pembentukan komponen fitur hibrida.
 %-----------------------------------------------------------------------------%
 \section{Klasifikasi Berbasis Flow}
 \label{sec:bab2-flow-based}
